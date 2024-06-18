@@ -9,5 +9,6 @@ public class AdditionalGeoLocation {
     private String latitude;
     @Schema(maxLength=10, description ="경도 (예: -126.104965)", example="-126.104965")
     private String longitude;
-    private String name;
+    @Schema(description ="이름")
+    private DisplayText name;
 }

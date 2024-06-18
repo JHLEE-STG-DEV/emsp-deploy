@@ -14,6 +14,6 @@ public class EmspServicePackage {
     @Schema(description = "패키지 명")
     private String name;
     @Schema(description = "패키지 만료 시점")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
     private ZonedDateTime expiration_date;
 }

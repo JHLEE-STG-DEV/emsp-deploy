@@ -16,7 +16,7 @@ public class Location {
     @Schema(required = true, defaultValue="true", description = "정보 수신자가 위치를 게시할 수 있는지 여부로, 위치 게시가 불가능한 경우에는 조회 결과에 포함하지 않습니다.")
     private boolean publish;
     @Schema(description = "[publish] 'false'일 경우에만 사용하며, [PublishTokenType]이 일치하는 사용자에게만 이 위치를 표시할 수 있습니다.")
-    private List<AccessControl> publish_allowed_to;
+    private List<PublishTokenType> publish_allowed_to;
     @Schema(maxLength=255)
     private String name;
     @Schema(maxLength=45, required = true, description = "거리/ 블록 이름 및 집번호, 상세주소 입니다.")

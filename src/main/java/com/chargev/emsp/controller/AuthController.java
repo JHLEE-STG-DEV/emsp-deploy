@@ -1,5 +1,6 @@
 package com.chargev.emsp.controller;
 
+import com.chargev.emsp.entity.authenticationentity.AuthSubject;
 import com.chargev.emsp.service.cryptography.ECDSASignatureService;
 import com.chargev.emsp.service.cryptography.ECKeyPairService;
 import com.chargev.emsp.service.cryptography.JwtTokenService;
@@ -39,6 +40,13 @@ public class AuthController {
     private final ECKeyPairService ecKeyPairService;
     private final ECDSASignatureService ecdsaSignatureService;
     private final JwtTokenService jwtTokenService;
+
+    // TODO : 테스트가 끝나면 이 함수 필수로 삭제해야 함 
+    @GetMapping("/insertInitialData")
+    public String insertInitialData() {
+        
+        return "";
+    }
 
     @PostMapping("/token")
     public String postMethodName(@RequestBody String entity) {

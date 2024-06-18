@@ -3,13 +3,16 @@ package com.chargev.emsp.model.dto.ocpi;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum ConnectorFormat {
-    SOCKET("SOCKET"),
-      CABLE("CABLE");
+public enum ParkingRestriction {
+    EV_ONLY("EV_ONLY"),
+      PLUGGED("PLUGGED"),
+      DISABLED("DISABLED"),
+      CUSTOMERS("CUSTOMERS"),
+      MOTORCYCLES("MOTORCYCLES");
   
     private String value;
   
-    ConnectorFormat(String value) {
+    ParkingRestriction(String value) {
       this.value = value;
     }
   
@@ -20,8 +23,8 @@ public enum ConnectorFormat {
     }
   
     @JsonCreator
-    public static ConnectorFormat fromValue(String text) {
-      for (ConnectorFormat b : ConnectorFormat.values()) {
+    public static ParkingRestriction fromValue(String text) {
+      for (ParkingRestriction b : ParkingRestriction.values()) {
         if (String.valueOf(b.value).equals(text)) {
           return b;
         }

@@ -16,10 +16,10 @@ public class EmspContarct {
     @Schema(description = "vin number")
     private String vin;
     @Schema(description = "계약 개시")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
     private ZonedDateTime contract_start_date;
     @Schema(description = "계약 만료")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
     private ZonedDateTime contract_end_date;
     @Schema(description = "패키지")
     private EmspServicePackage service_package;

@@ -27,7 +27,7 @@ public class Cdr {
     private CdrLocation cdr_location;
     @Schema(maxLength=255, description = "충전 지점 내부의 미터 식별자 입니다.")
     private String meter_id;
-    @Schema(maxLength=3, minLength=3, required = true, description = "CDR에 사용된 통화 코드이며, 국제 표준 ISO 4217 기준을 사용합니다.", defaultValue="KOR", example="KOR")
+    @Schema(maxLength=3, minLength=3, required = true, description = "CDR에 사용된 통화 코드이며, 국제 표준 ISO 4217 기준을 사용합니다.", defaultValue="KRW", example="KRW")
     private String currency;
     @Schema(description = "[Tariff Elements] 관련 목록입니다. [Tariff]를 참조하십시오. 해당되는 경우 무료 [Tariff]도 이 목록에 있어야 하며, 정의된 무료 [Tariff]를 가리켜야 합니다.")
     private List<Tariff> tariffs;

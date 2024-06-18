@@ -1,4 +1,4 @@
-package com.chargev.emsp.entity.authentication;
+package com.chargev.emsp.entity.authenticationentity;
 
 import lombok.Data;
 

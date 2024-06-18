@@ -12,6 +12,6 @@ public class OemPaymentInfo {
     @Schema(description = "자산 ID")
     private String asset_id;
     @Schema(description = "자산 ID 만료 일시")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
     private ZonedDateTime expiration_date;
 }

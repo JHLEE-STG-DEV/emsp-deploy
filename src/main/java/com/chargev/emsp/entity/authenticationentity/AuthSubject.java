@@ -1,5 +1,8 @@
-package com.chargev.emsp.entity.authentication;
+package com.chargev.emsp.entity.authenticationentity;
 
+import java.util.Date;
+
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
@@ -12,50 +15,54 @@ import lombok.Data;
 @Entity
 @Data
 
-// 인증 관련 챠번은 
+// 인증 관련 
 
 public class AuthSubject {
     @Id
     @Column(name = "SUBJECT_ID", columnDefinition = "CHAR(32)", nullable = false, unique = true)
-    private int subjectId;
+    private String subjectId;
 
     @Column(name = "SUBJECT_NAME", columnDefinition = "VARCHAR(32)", nullable = false)
-    private int subjectName;
+    private String subjectName;
 
     // OEM, CPO, MSP, MO, etc -> 한전을 뭐라고 칭할 것인지 표준으로 결정해야 함 
     @Column(name = "SUBJECT_TYPE", columnDefinition = "VARCHAR(3)", nullable = false)
-    private int subjectType;
+    private String subjectType;
 
     @Column(name = "SUBJECT_STATUS", columnDefinition = "INT",  nullable = false)
     private int subjectStatus;
 
     @Column(name = "SUBJECT_DESC", columnDefinition = "VARCHAR(255)")
-    private int subjectDesc;
+    private String subjectDesc;
 
     @Column(name = "SUBJECT_EMAIL", columnDefinition = "VARCHAR(255)")
-    private int subjectEmail;
+    private String subjectEmail;
 
     @Column(name = "SUBJECT_PHONE", columnDefinition = "VARCHAR(32)")
-    private int subjectPhone;
+    private String subjectPhone;
 
     @Column(name = "SUBJECT_PASSWORD", columnDefinition = "CHAR(64)",  nullable = false)
-    private int subjectPassword;
+    private String subjectPassword;
 
     @Column(name = "CREATED_DATE", columnDefinition = "DATE",  nullable = false)
     @CreationTimestamp
-    private int createdDate;
+    private Date createdDate;
 
     @Column(name = "UPDATED_DATE", columnDefinition = "DATE")
     @CreationTimestamp
-    private int updatedDate;
+    private Date updatedDate;
 
     @Column(name = "CREATED_USER", columnDefinition = "CHAR(32)")
-    private int createdUser;
+    private String createdUser;
 
     @Column(name = "UPDATED_USER", columnDefinition = "CHAR(32)")
-    private int updatedUser;
+    private String updatedUser;
 
     @Column(name = "SUBJECT_ROLES", columnDefinition = "VARCHAR(1024)")
-    private int subjectRoles;
+    private String subjectRoles;
+
+    @ColumnDefault("0")
+    @Column(name = "DELETED", columnDefinition = "INT", nullable = false)
+    private int deleted;
 
 }

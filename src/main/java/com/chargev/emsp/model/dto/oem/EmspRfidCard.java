@@ -18,6 +18,6 @@ public class EmspRfidCard {
     @Schema(description = "RFID 카드 상태에 대한 이유(분실 등)")
     private String reason;
     @Schema(description = "issued_at")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
     private ZonedDateTime issued_at;
 }

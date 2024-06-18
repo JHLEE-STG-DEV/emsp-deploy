@@ -1,4 +1,4 @@
-package com.chargev.emsp.entity.authentication;
+package com.chargev.emsp.entity.authenticationentity;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -17,7 +17,7 @@ import lombok.Data;
 public class TokenIssueHistory {
     @Id
     @Column(name = "ISSUE_ID", columnDefinition = "CHAR(32)", nullable = false, unique = true)
-    private int issueId;
+    private String issueId;
 
     @Column(name = "SUBJECT_ID", columnDefinition = "CHAR(32)", nullable = false)
     private String subjectId;

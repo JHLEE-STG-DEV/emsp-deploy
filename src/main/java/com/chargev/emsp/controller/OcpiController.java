@@ -1,6 +1,5 @@
 package com.chargev.emsp.controller;
 
-import com.chargev.emsp.entity.*;
 import com.chargev.emsp.model.dto.response.ApiResponseObject;
 import com.chargev.emsp.model.dto.response.ApiResponseObjectList;
 import com.chargev.emsp.model.dto.response.ApiResponseString;
@@ -8,8 +7,6 @@ import com.chargev.emsp.model.dto.ocpi.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,43 +25,43 @@ import org.apache.hc.core5.http.HttpStatus;
 @Validated
 @RequiredArgsConstructor
 public class OcpiController {
-    @GetMapping(path ="credentials")
-    public ResponseEntity<Credentials> getCredentials(@PathVariable String version,  @RequestHeader(value = "Authorization", required=false) String headerStr) {
-        if(headerStr == null) {
-            headerStr = "";
-        }
-        headerStr = headerStr.replace("Token ", "");
-        headerStr = headerStr.replace("token ", "");
-        // decode base64 headerStr to string
+    // @GetMapping(path ="credentials")
+    // public ResponseEntity<Credentials> getCredentials(@PathVariable String version,  @RequestHeader(value = "Authorization", required=false) String headerStr) {
+    //     if(headerStr == null) {
+    //         headerStr = "";
+    //     }
+    //     headerStr = headerStr.replace("Token ", "");
+    //     headerStr = headerStr.replace("token ", "");
+    //     // decode base64 headerStr to string
         
-        byte[] tokenByte = Base64.getDecoder().decode(headerStr);
-        String token = new String(tokenByte);
+    //     byte[] tokenByte = Base64.getDecoder().decode(headerStr);
+    //     String token = new String(tokenByte);
 
-        Credentials credentials = new Credentials();
-        credentials.setToken("");
+    //     Credentials credentials = new Credentials();
+    //     credentials.setToken("");
 
-        HttpHeaders responseHeaders = new HttpHeaders();
-        return new ResponseEntity<>(null, responseHeaders, HttpStatus.SC_UNAUTHORIZED);
-    }
+    //     HttpHeaders responseHeaders = new HttpHeaders();
+    //     return new ResponseEntity<>(null, responseHeaders, HttpStatus.SC_UNAUTHORIZED);
+    // }
 
-    @GetMapping(path ="test2")
-    public ResponseEntity<Credentials> testCredentials(@PathVariable String version,  @RequestHeader(value = "Authorization", required=true) String headerStr) {
-        if(headerStr == null) {
-            headerStr = "";
-        }
-        headerStr = headerStr.replace("Token ", "");
-        headerStr = headerStr.replace("token ", "");
-        // decode base64 headerStr to string
+    // @GetMapping(path ="test2")
+    // public ResponseEntity<Credentials> testCredentials(@PathVariable String version,  @RequestHeader(value = "Authorization", required=true) String headerStr) {
+    //     if(headerStr == null) {
+    //         headerStr = "";
+    //     }
+    //     headerStr = headerStr.replace("Token ", "");
+    //     headerStr = headerStr.replace("token ", "");
+    //     // decode base64 headerStr to string
         
-        // byte[] tokenByte = Base64.getDecoder().decode(headerStr);
-        // String token = new String(tokenByte);
+    //     // byte[] tokenByte = Base64.getDecoder().decode(headerStr);
+    //     // String token = new String(tokenByte);
 
-        Credentials credentials = new Credentials();
-        credentials.setToken("");
+    //     Credentials credentials = new Credentials();
+    //     credentials.setToken("");
 
-        HttpHeaders responseHeaders = new HttpHeaders();
-        return new ResponseEntity<>(null, responseHeaders, HttpStatus.SC_UNAUTHORIZED);
-    }
+    //     HttpHeaders responseHeaders = new HttpHeaders();
+    //     return new ResponseEntity<>(null, responseHeaders, HttpStatus.SC_UNAUTHORIZED);
+    // }
 
 
     @GetMapping("/locations")
@@ -214,21 +211,21 @@ public class OcpiController {
 
     @PostMapping("/commands/START_SESSION")
     @Operation(summary = "5-1. commands - start session", description = "CPO에 원격 충전 시작 명령을 전송")
-    public ApiResponseObject<CommandResponse> startSession(@RequestBody CommandStartRequest request) {
+    public ApiResponseObject<CommandResponse> startSession(@RequestBody StartSession request) {
 
         return new ApiResponseObject<CommandResponse>();
     }
 
     @PostMapping("/commands/STOP_SESSION")
     @Operation(summary = "5-2. commands - stop session", description = "CPO에 원격 충전 종료 명령을 전송")
-    public ApiResponseObject<CommandResponse> stopSession(@RequestBody CommandStopRequest request) {
+    public ApiResponseObject<CommandResponse> stopSession(@RequestBody StopSession request) {
 
         return new ApiResponseObject<CommandResponse>();
     }
 
     @PostMapping("/commands/RESERVE_NOW")
     @Operation(summary = "5-3. commands - reverse session", description = "CPO에 원격 충전 예약 요청 명령을 전송")
-    public ApiResponseObject<CommandResponse> reserveSession(@RequestBody CommandReserveRequest request) {
+    public ApiResponseObject<CommandResponse> reserveSession(@RequestBody ReserveNow request) {
 
         return new ApiResponseObject<CommandResponse>();
     }

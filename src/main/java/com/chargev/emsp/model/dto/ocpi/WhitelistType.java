@@ -3,13 +3,15 @@ package com.chargev.emsp.model.dto.ocpi;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-public enum ConnectorFormat {
-    SOCKET("SOCKET"),
-      CABLE("CABLE");
+public enum WhitelistType {
+    ALWAYS("ALWAYS"),
+      ALLOWED("ALLOWED"),
+      ALLOWED_OFFLINE("ALLOWED_OFFLINE"),
+      NEVER("NEVER");
   
     private String value;
   
-    ConnectorFormat(String value) {
+    WhitelistType(String value) {
       this.value = value;
     }
   
@@ -20,8 +22,8 @@ public enum ConnectorFormat {
     }
   
     @JsonCreator
-    public static ConnectorFormat fromValue(String text) {
-      for (ConnectorFormat b : ConnectorFormat.values()) {
+    public static WhitelistType fromValue(String text) {
+      for (WhitelistType b : WhitelistType.values()) {
         if (String.valueOf(b.value).equals(text)) {
           return b;
         }
