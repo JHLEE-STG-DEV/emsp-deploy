@@ -1,9 +1,14 @@
 package com.chargev.emsp.controller;
 
 import com.chargev.emsp.entity.authenticationentity.AuthSubject;
+import com.chargev.emsp.entity.authenticationentity.TokenIssueHistory;
+import com.chargev.emsp.service.authentication.AuthService;
 import com.chargev.emsp.service.cryptography.ECDSASignatureService;
 import com.chargev.emsp.service.cryptography.ECKeyPairService;
 import com.chargev.emsp.service.cryptography.JwtTokenService;
+import com.chargev.emsp.service.cryptography.SHAService;
+
+import ch.qos.logback.core.subst.Token;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +25,9 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 
 
 
@@ -40,12 +41,30 @@ public class AuthController {
     private final ECKeyPairService ecKeyPairService;
     private final ECDSASignatureService ecdsaSignatureService;
     private final JwtTokenService jwtTokenService;
+    private final AuthService authService;
+    private final SHAService shaService;
+    private static final String SALT_STRING = "1577d9c941ad49008f4161ad02728dd2";
 
     // TODO : 테스트가 끝나면 이 함수 필수로 삭제해야 함 
     @GetMapping("/insertInitialData")
-    public String insertInitialData() {
-        
-        return "";
+    public AuthSubject insertInitialData() {
+        AuthSubject authSubject = new AuthSubject();
+        authSubject.setSubjectId("e4f0b26742014c60a7fce2a9f7efdf25");
+        authSubject.setSubjectName("Mercedes-Benz");
+        authSubject.setSubjectPassword("1234");
+        authSubject.setSubjectEmail("test@test.com");
+        authSubject.setSubjectPhone("010-1234-5678");
+        authSubject.setSubjectPassword(shaService.sha256Hash("2d92271fa4fc45f39643e8d26ec61af7", SALT_STRING));
+        authSubject.setCreatedDate(new Date());
+        authSubject.setUpdatedDate(new Date());
+        authSubject.setCreatedUser("00000000000000000000000000000000");
+        authSubject.setUpdatedUser("00000000000000000000000000000000");
+        authSubject.setDeleted(0);
+        authSubject.setSubjectRoles("OEM:READ;GROUP:0001");
+        authSubject.setSubjectType("OEM");
+        authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
+        authSubject.setSubjectDesc("Mercedes-Benz OEM Server User");
+        return authService.saveAuthSubject(authSubject);
     }
 
     @PostMapping("/token")

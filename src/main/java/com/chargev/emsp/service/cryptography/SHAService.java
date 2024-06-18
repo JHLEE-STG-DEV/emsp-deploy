@@ -8,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.math.BigInteger;
 
 @Service
-public class SHAUtil {
+public class SHAService {
     public String sha256Hash(String input, String salt) {
         input = salt + input;
 
