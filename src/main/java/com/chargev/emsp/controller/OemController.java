@@ -35,7 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OemController {
 
-    @PostMapping("/registration")
+    @PostMapping("/registrations")
     @Operation(summary = "1-1. eMSP 회원 등록", description = "OEM 회원 정보와 매칭되는 eMSP 회원 등록(생성)")
     public ApiResponseObject<EmspAccount> registerAccount(@RequestBody EmspAccountRegistration request) {
         // eMSP 가입 프로세스를 진행한다.
@@ -53,7 +53,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/account/{emsp_account_key}")
+    @GetMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-2. eMSP 회원 조회)", description = "eMSP 회원 정보 조회")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -75,7 +75,7 @@ public class OemController {
         return response;
     }
 
-    @PatchMapping("/account/{emsp_account_key}")
+    @PatchMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-3. eMSP 회원 수정", description = "eMSP 회원 정보 변경")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -98,7 +98,7 @@ public class OemController {
         return response;
     }
 
-    @DeleteMapping("/account/{emsp_account_key}")
+    @DeleteMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-4. eMSP 회원 탈퇴(삭제)", description = "eMSP 회원 정보 삭제")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -120,7 +120,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/account/{emsp_account_key}/contract")
+    @GetMapping("/accounts/{emsp_account_key}/contract")
     @Operation(summary = "2-1. 계약 목록 조회", description = "특정 회원의 계약 목록을 조회한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -134,7 +134,7 @@ public class OemController {
         return response;
     }
 
-    @PostMapping("/account/{emsp_account_key}/contract")
+    @PostMapping("/accounts/{emsp_account_key}/contracts")
     @Operation(summary = "2-2. 계약 생성", description = "입력 vin이 유효한 Contract를 가지고 있을 경우, Contract 생성")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -148,7 +148,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/account/{emsp_account_key}/contract/{emsp_contract_id}")
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-3. 계약 조회", description = "특정 회원의 특정 계약을 조회한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -164,7 +164,7 @@ public class OemController {
         return response;
     }
 
-    @PatchMapping("/account/{emsp_account_key}/contract/{emsp_contract_id}")
+    @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-4. 계약 수정", description = "특정 회원의 특정 계약을 수정한다")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -181,7 +181,7 @@ public class OemController {
         return response;
     }
 
-    @DeleteMapping("/account/{emsp_account_key}/contract/{emsp_contract_id}")
+    @DeleteMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-6. 계약 해지(삭제)", description = "특정 회원의 특정 계약을 해지(삭제)한다")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -197,7 +197,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/account/{emsp_account_key}/contract/{emsp_contract_id}/driver_group")
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/driver_group")
     @Operation(summary = "2-7. Driver Group 조회", description = "특정 Tariff 적용을 위한 Group 정보. 조회 시점에 해당 eMSP 계약에 1개의 DriverGroup이 있음")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -213,7 +213,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/rfid/{emsp_account_key}/{emsp_contract_id}")
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids")
     @Operation(summary = "3-1. RFID 목록 조회", description = "특정 회원의 특정 계약에 속한 RFID 카드의 목록을 조회한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -229,7 +229,7 @@ public class OemController {
         return response;
     }
 
-    @PostMapping("/rfid/{emsp_account_key}/{emsp_contract_id}")
+    @PostMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued")
     @Operation(summary = "3-2. RFID 발급 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성한다")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -248,7 +248,45 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/rfid/{emsp_account_key}/{emsp_contract_id}/{card_id}")
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued/{issued_id}")
+    @Operation(summary = "3-3. RFID 발급 요청 조회", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성 요청된 내용을 조회한다.")
+    @Parameters({
+        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
+        @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
+        @Parameter(name = "issued_id", description = "RFID Issued Id", example = "123456789"),
+    })
+    public ApiResponseObject<EmspRfidCard> getRfidIssued(
+        @PathVariable("emsp_account_key") String emspAccountKey,
+        @PathVariable("emsp_contract_id") String emspContractId,
+        @PathVariable("issued_id") String issuedId,
+        @RequestBody EmspRfidCardRequest request) {
+        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 건 내에 특정 issued id로 생성 요청된 RFID 정보를 조회한다.
+
+        ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+
+        return response;
+    }
+
+    @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued/{issued_id}")
+    @Operation(summary = "3-4. RFID 발급 수정 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성 요청된 내용을 수정한다.")
+    @Parameters({
+        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
+        @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
+        @Parameter(name = "issued_id", description = "RFID Issued Id", example = "123456789"),
+    })
+    public ApiResponseObject<EmspRfidCard> patchRfidIssued(
+        @PathVariable("emsp_account_key") String emspAccountKey,
+        @PathVariable("emsp_contract_id") String emspContractId,
+        @PathVariable("issued_id") String issuedId,
+        @RequestBody EmspRfidCardRequest request) {
+        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 건 내에 특정 issued id로 생성 요청된 RFID 정보를 수정한다.
+
+        ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+
+        return response;
+    }
+
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/{card_id}")
     @Operation(summary = "3-3. RFID 조회", description = "특정 회원의 특정 계약에 속한 특정 RFID 카드 단건을 조회한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -266,7 +304,7 @@ public class OemController {
         return response;
     }
 
-    @PatchMapping("/rfid/{emsp_account_key}/{emsp_contract_id}/{card_id}")
+    @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/{card_id}")
     @Operation(summary = "3-4. RFID 수정", description = "특정 회원의 특정 계약에 속한 특정 RFID 카드 정보를 수정한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -290,8 +328,8 @@ public class OemController {
         return response;
     }
 
-    @DeleteMapping("/rfid/{emsp_account_key}/{emsp_contract_id}/{card_id}")
-    @Operation(summary = "3-4. RFID 수정", description = "특정 회원의 특정 계약에 속한 특정 RFID 카드 정보를 삭제한다.")
+    @DeleteMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/{card_id}")
+    @Operation(summary = "3-5. RFID 삭제", description = "특정 회원의 특정 계약에 속한 특정 RFID 카드 정보를 삭제한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
