@@ -20,6 +20,7 @@ import com.chargev.emsp.model.dto.oem.OemVehicleInfo;
 import com.chargev.emsp.model.dto.response.ApiResponseObject;
 import com.chargev.emsp.model.dto.response.ApiResponseObjectList;
 import com.chargev.emsp.model.dto.response.ApiResponseString;
+import com.chargev.emsp.model.dto.response.OcpiResponseStatusCode;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,8 +44,8 @@ public class OemController {
         ApiResponseObject<EmspAccount> response = new ApiResponseObject<>();
 
         // 가입 성공했다면
-        response.setStatus_code(1000);
-        response.setStatus_message("Success");
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage("Success");
         // 보내줘야 하는 데이터
         EmspAccount emsp_account = new EmspAccount();
         response.setData(emsp_account);
@@ -65,8 +66,8 @@ public class OemController {
         ApiResponseObject<EmspAccount> response = new ApiResponseObject<>();
 
         // 회원정보 조회 성공했다면
-        response.setStatus_code(1000);
-        response.setStatus_message("Success");
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage("Success");
        // 보내줘야 하는 데이터
        EmspAccount emsp_account = new EmspAccount();
        response.setData(emsp_account);
@@ -88,8 +89,8 @@ public class OemController {
         ApiResponseObject<EmspAccount> response = new ApiResponseObject<>();
 
         // 회원정보 변경 성공했다면
-        response.setStatus_code(1000);
-        response.setStatus_message("Success");
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage("Success");
         // 보내줘야 하는 데이터 (아직 미정. 가입시와 동일하게 Account 통째로 보내주는 것으로 작성해둠)
         EmspAccount emsp_account = new EmspAccount();
         response.setData(emsp_account);
@@ -112,8 +113,8 @@ public class OemController {
         ApiResponseString response = new ApiResponseString();
 
         // 회원정보 삭제 성공했다면
-        response.setStatus_code(1000);
-        response.setStatus_message("Success");
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage("Success");
         response.setData("Deleted");
 
         return response;

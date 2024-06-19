@@ -2,6 +2,8 @@ package com.chargev.emsp.controller;
 
 import com.chargev.emsp.entity.authenticationentity.AuthSubject;
 import com.chargev.emsp.entity.authenticationentity.TokenIssueHistory;
+import com.chargev.emsp.entity.authenticationentity.TokenRequest;
+import com.chargev.emsp.model.dto.response.ApiResponseString;
 import com.chargev.emsp.service.authentication.AuthService;
 import com.chargev.emsp.service.cryptography.ECDSASignatureService;
 import com.chargev.emsp.service.cryptography.ECKeyPairService;
@@ -67,14 +69,17 @@ public class AuthController {
         return authService.saveAuthSubject(authSubject);
     }
 
+
     @PostMapping("/token")
-    public String postMethodName(@RequestBody String entity) {
+    public ApiResponseString generateToken(@RequestBody TokenRequest entity) {
         // 토큰을 발행할 영역을 지정 후, 토큰을 발행한다.
         // 토큰 사용 영역 
         // 1. 관리자 페이지 영역 (권한 요청 필수)
         // 2. CPO, OCPI, OEM, PNC 각 영역별 발행 (권한 요청 옵션, 초기 인증 처리 방법)
         // 3. 외부 플랫폼의 사용자 처리 등.
-        return entity;
+        ApiResponseString response = new ApiResponseString();
+
+        return response;
     }
 
     @GetMapping("/generate")
