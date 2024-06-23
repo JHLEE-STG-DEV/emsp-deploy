@@ -6,10 +6,14 @@ import lombok.Data;
 @Data
 public class PncReqBodyIssueCert {
 
-    @Schema(description = "CSR")
+    @Schema(required=true, description = "CSR")
     private String certificateSigningRequest;
-    @Schema(description = "충전기 고유 식별자")
-    private String ecKey;
-    @Schema(description = "신규(NEW) / 갱신(UPDATE)", example = "NEW")
-    private String type;
+    @Schema(required=true, description = "충전기 고유 식별자")
+    private Long ecKey;
+    @Schema(required=true, description = "NEW(신규) / UPDATE(갱신)", defaultValue="NEW", example = "NEW")
+    private String issueType;
+    @Schema(required=true, description = "CSMS / EVSE", defaultValue="EVSE", example = "EVSE")
+    private String certType;
+    @Schema(required=true, description = "KEPCO / HUBJECT", defaultValue="KEPCO", example = "KEPCO")
+    private String authorities;
 }

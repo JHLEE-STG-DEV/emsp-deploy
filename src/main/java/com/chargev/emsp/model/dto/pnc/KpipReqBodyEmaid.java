@@ -5,7 +5,6 @@ import lombok.Data;
 
 @Data
 public class KpipReqBodyEmaid {
-
-    @Schema(description = "emaId(계약ID)", example = "KRCEVCA0123456")
+    @Schema(description = "emaid")
     private String emaid;
 }

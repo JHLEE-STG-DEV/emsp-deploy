@@ -61,7 +61,7 @@ public class KpipApiService {
     }
 
     // 1-1. EVSE/CSMS Issue Certificate
-    public String issueCert(KpipReqBodyIssueCert request) {
+    public Map<String, Object> issueCert(KpipReqBodyIssueCert request) {
         String url = "/cert/issuance";
         HttpHeaders headers = createHeaders();
 
@@ -75,24 +75,11 @@ public class KpipApiService {
 
         Map<String, Object> response = responseMono.block();
 
-        String resultCode = (String) response.get("resultCode");
-        String resultMsg = (String) response.get("resultMsg");
-
-        // CSMS/EVSE 준거 그대로 받는 거라서 의미는 없을듯
-        String certType = (String) response.get("certType");
-
-        // Base 64 encoded DER format of EVSE/CSMS 인증서
-        String leafCert = (String) response.get("leafCert");
-
-        // SubCa2 Cert (서명하는데 사용된 CPO SubCA를 그대로 내려주는 것으로 추정됨)
-        // SubCa1 도 같이 내려주는 것으로 문서상 기재되어 있지만 현재 사용하지 않아 추출하지 않음
-        String subCa2 = (String) response.get("subCa2");
-
-        return resultMsg;
+        return response;
     }
 
     // 1-2. EVSE/CSMS Revoke Certificate
-    public String revokeCert(KpipReqBodyRevokeCert request) {
+    public Map<String, Object> revokeCert(KpipReqBodyRevokeCert request) {
         String url = "/cert/revocation";
         HttpHeaders headers = createHeaders();
 
@@ -106,16 +93,7 @@ public class KpipApiService {
 
         Map<String, Object> response = responseMono.block();
 
-        String resultCode = (String) response.get("resultCode");
-        String resultMsg = (String) response.get("resultMsg");
-
-        if (resultCode == "OK") {
-            // 이후 로직 처리
-        } else {
-            // 처리 실패
-        }
-
-        return resultMsg;
+        return response;
     }
 
     // 1-3. Verify OCSP
@@ -137,7 +115,7 @@ public class KpipApiService {
         String resultMsg = (String) response.get("resultMsg");
         String status = (String) response.get("status");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // 이후 로직 처리
         } else {
             // 처리 실패
@@ -182,7 +160,7 @@ public class KpipApiService {
         // Base 64 Encoded X.509 format of CRL
         String crl = (String) response.get("crl");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // 이후 로직 처리
         } else {
             // 처리 실패
@@ -216,7 +194,7 @@ public class KpipApiService {
         // EVSE에서 처리가능한 Base 64 Encoded OCSP Response Message
         String ocspRes = (String) response.get("ocspRes");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // 이후 로직 처리
         } else {
             // 처리 실패
@@ -241,7 +219,7 @@ public class KpipApiService {
     }
 
     // 2-1. Issue Contract Certificate
-    public String issueContractCert(KpipReqBodyIssueContractCert request) {
+    public Map<String, Object> issueContractCert(KpipReqBodyIssueContractCert request) {
         String url = "/contract/issue";
         HttpHeaders headers = createHeaders();
 
@@ -255,10 +233,7 @@ public class KpipApiService {
 
         Map<String, Object> response = responseMono.block();
 
-        String resultCode = (String) response.get("resultCode");
-        String resultMsg = (String) response.get("resultMsg");
-
-        return resultMsg;
+        return response;
     }
 
     // 2-2. Revoke Contract Certificate
@@ -279,7 +254,7 @@ public class KpipApiService {
         String resultCode = (String) response.get("resultCode");
         String resultMsg = (String) response.get("resultMsg");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // KEPCO쪽 계약인증서 삭제 성공
             // 이후 로직 처리
         } else {
@@ -309,7 +284,7 @@ public class KpipApiService {
         String resultMsg = (String) response.get("resultMsg");
         String status = (String) response.get("status");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // KEPCO쪽 계약인증서 검증 성공
             // 이후 로직 처리
         } else {
@@ -353,10 +328,10 @@ public class KpipApiService {
         String resultCode = (String) response.get("resultCode");
         String resultMsg = (String) response.get("resultMsg");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // List 전체 처리 성공
             // 이후 로직 처리
-        } else if (resultCode == "SOME") {
+        } else if (resultCode.equals("OK")) {
             // List 중 일부만 처리 성공
             // emadList 내부의 각각의 resultMsg 확인 필요
         } else {
@@ -389,7 +364,7 @@ public class KpipApiService {
         String resultCode = (String) response.get("resultCode");
         String resultMsg = (String) response.get("resultMsg");
 
-        if (resultCode == "OK") {
+        if (resultCode.equals("OK")) {
             // 이후 로직 처리
         } else {
             // 처리 실패

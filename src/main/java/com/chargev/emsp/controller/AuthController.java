@@ -4,7 +4,9 @@ import com.chargev.emsp.entity.authenticationentity.AuthSubject;
 import com.chargev.emsp.entity.authenticationentity.TokenIssueHistory;
 import com.chargev.emsp.entity.authenticationentity.TokenRequest;
 import com.chargev.emsp.model.dto.response.ApiResponseString;
+import com.chargev.emsp.model.dto.response.OcpiResponseStatusCode;
 import com.chargev.emsp.service.authentication.AuthService;
+import com.chargev.emsp.service.cryptography.AESService;
 import com.chargev.emsp.service.cryptography.ECDSASignatureService;
 import com.chargev.emsp.service.cryptography.ECKeyPairService;
 import com.chargev.emsp.service.cryptography.JwtTokenService;
@@ -16,6 +18,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.kafka.shaded.io.opentelemetry.proto.trace.v1.Status.StatusCode;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,6 +48,7 @@ public class AuthController {
     private final JwtTokenService jwtTokenService;
     private final AuthService authService;
     private final SHAService shaService;
+    private final AESService aesService;
     private static final String SALT_STRING = "1577d9c941ad49008f4161ad02728dd2";
 
     // TODO : 테스트가 끝나면 이 함수 필수로 삭제해야 함 
@@ -78,7 +82,13 @@ public class AuthController {
         // 2. CPO, OCPI, OEM, PNC 각 영역별 발행 (권한 요청 옵션, 초기 인증 처리 방법)
         // 3. 외부 플랫폼의 사용자 처리 등.
         ApiResponseString response = new ApiResponseString();
+        aesService.setKey("c9afaba19a1145d79f4f9b9525159f07d1daa4690e2f4d6ab117906473334f2b");
+        String str =  aesService.encrypt("안뇽하세요");
+        response.setData(str);
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
 
+        String original = aesService.decrypt(str);
+        response.setStatusMessage(original);
         return response;
     }
 
@@ -118,13 +128,6 @@ public class AuthController {
         Map<String, Boolean> response = new HashMap<>();
         response.put("isValid", isValid);
         return response;
-    }
-    
-    @PostMapping("/generateToken")
-    public String GenerateToken(@RequestBody String entity) {
-        //TODO: process POST request
-        
-        return entity;
     }
     
 
