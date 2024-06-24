@@ -109,10 +109,10 @@ public class PncController {
         
         // csr 바로 토스하지 않고 제대로 된 csr인지 검증 필요할 것으로 보임
         // 주요 검증 내용: ECC 서명 알고리즘 사용하였는지, CN 제대로 들어있는지
-        // issueType은 certType으로 바꿔서, certType은 flag로 바꿔서 토스
-        req.setCertType(issueType);
+        // issueType은 flag로 바꿔서 토스
+        req.setCertType(certType);
         req.setCsr(csr);
-        req.setFlag(certType.equals("NEW") ? "N" : "R");
+        req.setFlag(issueType.equals("NEW") ? "N" : "R");
 
         Map<String, Object> result = kpipApiService.issueCert(req);
 
