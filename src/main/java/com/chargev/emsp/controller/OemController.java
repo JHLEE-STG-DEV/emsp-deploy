@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -40,10 +39,7 @@ public class OemController {
 
     @PostMapping("/registrations")
     @Operation(summary = "1-1. eMSP 회원 등록", description = "OEM 회원 정보와 매칭되는 eMSP 회원 등록(생성)")
-    public ApiResponseObject<EmspAccount> registerAccount(@PathVariable("version") String version, 
-    @RequestBody EmspAccountRegistration request,
-    @RequestHeader("Authorization") String authorization
-    ) 
+    public ApiResponseObject<EmspAccount> registerAccount(@RequestBody EmspAccountRegistration request) 
     {
         ApiResponseObject<EmspAccount> response = new ApiResponseObject<>();
 
@@ -65,8 +61,7 @@ public class OemController {
     @GetMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-2. eMSP 회원 조회)", description = "eMSP 회원 정보 조회")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
-    public ApiResponseObject<EmspAccount> getAccount(@PathVariable("version") String version,
-            @PathVariable("emsp_account_key") String emspAccountKey) {
+    public ApiResponseObject<EmspAccount> getAccount(@PathVariable("emsp_account_key") String emspAccountKey) {
         // eMSP 회원 조회 프로세스를 진행한다.
 
         // 응답바디 생성
@@ -85,8 +80,7 @@ public class OemController {
     @PatchMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-3. eMSP 회원 수정", description = "eMSP 회원 정보 변경")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
-    public ApiResponseObject<EmspAccount> patchAccount(@PathVariable("version") String version,
-            @PathVariable("emsp_account_key") String emspAccountKey) {
+    public ApiResponseObject<EmspAccount> patchAccount(@PathVariable("emsp_account_key") String emspAccountKey) {
         // eMSP 회원 변경 프로세스를 진행한다.
         // 실제로 변경할 내용은 body로 받아야 할 것 같은데, 아직 설계가 덜 끝난 것 같아서 body부분은 만들어놓지 않았음
 
@@ -106,8 +100,7 @@ public class OemController {
     @DeleteMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-4. eMSP 회원 탈퇴(삭제)", description = "eMSP 회원 정보 삭제")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
-    public ApiResponseString deleteAccount(@PathVariable("version") String version,
-        @PathVariable("emsp_account_key") String emspAccountKey) {
+    public ApiResponseString deleteAccount(@PathVariable("emsp_account_key") String emspAccountKey) {
 
         // eMSP 회원 삭제 프로세스를 진행한다.
 
@@ -125,8 +118,7 @@ public class OemController {
     @GetMapping("/accounts/{emsp_account_key}/contract")
     @Operation(summary = "2-1. 계약 목록 조회", description = "특정 회원의 계약 목록을 조회한다.")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
-    public ApiResponseObjectList<EmspContract> getContracts(@PathVariable("version") String version, 
-        @PathVariable("emsp_account_key") String emspAccountKey) {
+    public ApiResponseObjectList<EmspContract> getContracts(@PathVariable("emsp_account_key") String emspAccountKey) {
         // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다.
 
         ApiResponseObjectList<EmspContract> response = new ApiResponseObjectList<>();
@@ -137,8 +129,7 @@ public class OemController {
     @PostMapping("/accounts/{emsp_account_key}/contracts")
     @Operation(summary = "2-2. 계약 생성", description = "입력 vin이 유효한 Contract를 가지고 있을 경우, Contract 생성")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
-    public ApiResponseObjectList<EmspContract> postContract(@PathVariable("version") String version,
-        @PathVariable("emsp_account_key") String emspAccountKey,
+    public ApiResponseObjectList<EmspContract> postContract(@PathVariable("emsp_account_key") String emspAccountKey,
         @RequestBody OemVehicleInfo vehicleInfo) {
         // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다.
 

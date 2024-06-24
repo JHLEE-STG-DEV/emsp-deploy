@@ -1,9 +1,10 @@
-package com.chargev.emsp.config;
+package com.chargev.emsp.interceptor;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.chargev.emsp.model.dto.response.ApiResponseString;
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+@Component
 public class AuthInterceptorForOem implements HandlerInterceptor {
     private final JwtTokenService jwtTokenService;
     private final DateTimeFormatterService dateTimeFormatterService;

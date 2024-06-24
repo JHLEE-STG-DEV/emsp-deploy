@@ -11,7 +11,6 @@ import org.springframework.kafka.support.SendResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,6 +33,7 @@ import com.chargev.emsp.service.cryptography.CertificateService;
 import com.chargev.emsp.service.http.KpipApiService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -55,9 +55,10 @@ public class PncController {
         description = """
                       OEM -> **ChargeLink -> eMSP** -> kafka <br><br>
                       kafka : [MSG-EMSP-PNC-CONTRACT] 로 변경된 계약 정보 전송
-                      """
+                      """,
+        security = @SecurityRequirement(name = "bearerAuth")
     )
-    public KpipApiResponse suspension(@RequestBody PncReqBodyContractSuspension request, @RequestHeader("Authorization") String authorization) {
+    public KpipApiResponse suspension(@RequestBody PncReqBodyContractSuspension request) {
         // OEM 프로비저닝 변경으로 생성된 기존 계약을 삭제(만료)처리해야 하는 상황을 KEPCO가 알려줄 때 호출함.
         // 들어온 body의 pcid에 해당하는 계약을 삭제(만료) 시키고 그에 따른 응답을 반환한다.
         KpipApiResponse response = new KpipApiResponse();
@@ -90,7 +91,7 @@ public class PncController {
                       kafka : [MSG-EMSP-EVSE-CERTIFICATE] 로 발급된 인증서 정보 전송
                       """
     )
-    public KpipApiResponse issueCert(@RequestBody PncReqBodyIssueCert request, @RequestHeader("Authorization") String authorization) {
+    public KpipApiResponse issueCert(@RequestBody PncReqBodyIssueCert request) {
 
         // 1. 요청바디의 값 확인
         // 1-1. csr
@@ -203,7 +204,7 @@ public class PncController {
                       kafka : [MSG-EMSP-EVSE-CERTIFICATE] 로 인증서 폐기 상태 업데이트
                       """
     )
-    public KpipApiResponse revokeCert(@RequestBody PncReqBodyRevokeCert request, @RequestHeader("Authorization") String authorization) {
+    public KpipApiResponse revokeCert(@RequestBody PncReqBodyRevokeCert request) {
 
         // 1. 요청바디의 값 확인
         // 1-1. CertificateHashData
@@ -277,7 +278,7 @@ public class PncController {
                       kafka : [MSG-EMSP-PNC-CONTRACT] 로 인증서 계약 인증서 정보 전송
                       """
     )
-    public KpipApiResponse issueContract(@RequestBody PncReqBodyIssueContract request, @RequestHeader("Authorization") String authorization) {
+    public KpipApiResponse issueContract(@RequestBody PncReqBodyIssueContract request) {
 
         // 1. 요청바디의 값 확인
         // 1-1. pcid (vin 차대번호)
@@ -373,7 +374,14 @@ public class PncController {
     }
 
     @PostMapping("/contract/revoke")
-    @Operation(summary = "2-2. PNC 계약 해지", description = "BMW APP에서 PnC 계약을 해지한다.")
+    @Operation(
+        summary = "2-2. PNC 계약 해지",
+        description = """
+                      **OEM(APP) -> eMSP** -> ChargLink -> eMSP -> kafka <br><br>
+                      ChargeLink : /contract/revocation 으로 계약 인증서 폐기 요청 전송 <br><br>
+                      kafka : [MSG-EMSP-PNC-CONTRACT] 로 변경된 계약 정보 전송
+                      """
+    )
     public KpipApiResponse revokeContract(@RequestBody KpipReqBodyEmaid request) {
 
         String resultMsg = kpipApiService.revokeContractCert(request);
@@ -389,8 +397,14 @@ public class PncController {
     }
 
     @PostMapping("/authorize")
-    @Operation(summary = "2-3. PNC 충전 인증", description = "CPO로부터 PnC 인증요청을 수신한다.")
-    public KpipApiResponse pncAuthorize(@RequestBody KpipReqBodyEmaid request, @RequestHeader("Authorization") String authorization) {
+    @Operation(
+        summary = "2-3. PNC 충전 인증",
+        description = """
+                      EVSE -> **MSP -> eMSP** -> ChargLink -> eMSP -> MSP <br><br>
+                      ChargeLink : /pnc-auth/authorize-account 로 account 유효성을 검증한다.
+                      """
+    )
+    public KpipApiResponse pncAuthorize(@RequestBody KpipReqBodyEmaid request) {
 
         // 1. PEM으로 들어온 인증서, 혹은 ecKey를 가지고 그에 매칭되는 emaid를 찾는다.
         // PnC account 체크

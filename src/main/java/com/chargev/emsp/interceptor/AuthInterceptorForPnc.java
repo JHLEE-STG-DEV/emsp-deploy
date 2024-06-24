@@ -1,5 +1,6 @@
-package com.chargev.emsp.config;
+package com.chargev.emsp.interceptor;
 
+import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 import com.chargev.emsp.service.cryptography.JwtTokenService;
@@ -7,6 +8,7 @@ import com.chargev.emsp.service.cryptography.JwtTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+@Component
 public class AuthInterceptorForPnc implements HandlerInterceptor {
 
     private final JwtTokenService jwtTokenService;

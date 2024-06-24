@@ -1,5 +1,26 @@
 package com.chargev.emsp.controller;
 
+import java.security.InvalidKeyException;
+import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.SignatureException;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
 import com.chargev.emsp.entity.authenticationentity.AuthSubject;
 import com.chargev.emsp.entity.authenticationentity.Permission;
 import com.chargev.emsp.entity.authenticationentity.PermissionBase;
@@ -17,28 +38,9 @@ import com.chargev.emsp.service.cryptography.JwtTokenService;
 import com.chargev.emsp.service.cryptography.KeyService;
 import com.chargev.emsp.service.cryptography.SHAService;
 
-import ch.qos.logback.core.subst.Token;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.kafka.shaded.io.opentelemetry.proto.trace.v1.Status.StatusCode;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SignatureException;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 
 
@@ -249,7 +251,7 @@ public class AuthController {
 
 
     @PostMapping("/token")
-    public ApiResponseString generateToken(@PathVariable String version, @RequestBody TokenRequest entity, HttpServletRequest request) {
+    public ApiResponseString generateToken(@RequestBody TokenRequest entity, HttpServletRequest request) {
         // 토큰을 발행할 영역을 지정 후, 토큰을 발행한다.
         // 토큰 사용 영역 
         // 1. 관리자 페이지 영역 (권한 요청 필수)
@@ -276,11 +278,11 @@ public class AuthController {
 
         ApiResponseString response = new ApiResponseString();
 
-        if(!version.equals("V001")) {
-            response.setStatusCode(OcpiResponseStatusCode.UNSUPPORTED_VERSION);
-            response.setStatusMessage(OcpiResponseStatusCode.UNSUPPORTED_VERSION.toString());
-            return response;
-        }
+        // if(!version.equals("V001")) {
+        //     response.setStatusCode(OcpiResponseStatusCode.UNSUPPORTED_VERSION);
+        //     response.setStatusMessage(OcpiResponseStatusCode.UNSUPPORTED_VERSION.toString());
+        //     return response;
+        // }
 
         // 어떤 영역에서 사용할 것인지 프라이빗 키를 불러온다. 
         if(entity == null) {
@@ -395,7 +397,7 @@ public class AuthController {
     
 
     @GetMapping("/generate")
-    public Map<String, String> generateECKeyPair(@PathVariable String version) {
+    public Map<String, String> generateECKeyPair() {
         KeyPair keyPair = ecKeyPairService.generateECKeyPair();
         Map<String, String> response = new HashMap<>();
         response.put("publicKey", ecKeyPairService.getPublicKeyAsBase64(keyPair));
@@ -404,7 +406,7 @@ public class AuthController {
     }
 
     @GetMapping("/csr/{subject}")
-    public Map<String, String> generateCSR(@PathVariable String version, @PathVariable String subject)  {
+    public Map<String, String> generateCSR(@PathVariable String subject)  {
         KeyPair keyPair = ecKeyPairService.generateECKeyPair();
         String csr = ecKeyPairService.generateCSR(keyPair, subject);
         Map<String, String> response = new HashMap<>();
