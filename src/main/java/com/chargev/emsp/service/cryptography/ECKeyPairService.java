@@ -26,10 +26,21 @@ public class ECKeyPairService {
         Security.addProvider(new BouncyCastleProvider());
     }
 
-    public KeyPair generateECKeyPair() throws NoSuchAlgorithmException, InvalidAlgorithmParameterException {
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+    public KeyPair generateECKeyPair() {
+        KeyPairGenerator keyPairGenerator = null;
+        try {
+            keyPairGenerator = KeyPairGenerator.getInstance("EC");
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return null;
+        }
         ECGenParameterSpec ecSpec = new ECGenParameterSpec("secp256r1"); // Prime256v1
-        keyPairGenerator.initialize(ecSpec, new SecureRandom());
+        try {
+            keyPairGenerator.initialize(ecSpec, new SecureRandom());
+        } catch (InvalidAlgorithmParameterException e) {
+            e.printStackTrace();
+            return null;
+        }
         return keyPairGenerator.generateKeyPair();
     }
 

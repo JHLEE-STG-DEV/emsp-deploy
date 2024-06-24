@@ -1,6 +1,8 @@
 package com.chargev.emsp.entity.authenticationentity;
 
 import java.util.Date;
+import java.util.List;
+import java.util.Map;
 
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
@@ -9,6 +11,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Data;
 
 @Table(name = "EV_AUTH_SUBJECT")
@@ -58,8 +61,11 @@ public class AuthSubject {
     @Column(name = "UPDATED_USER", columnDefinition = "CHAR(32)")
     private String updatedUser;
 
-    @Column(name = "SUBJECT_ROLES", columnDefinition = "VARCHAR(1024)")
-    private String subjectRoles;
+    @Column(name = "GROUP_ID", columnDefinition = "CHAR(6)")
+    private String groupId; 
+
+    @Transient
+    private List<PermissionBase> permissionList;
 
     @ColumnDefault("0")
     @Column(name = "DELETED", columnDefinition = "INT", nullable = false)

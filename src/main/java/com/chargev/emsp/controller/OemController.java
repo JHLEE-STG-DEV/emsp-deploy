@@ -1,5 +1,7 @@
 package com.chargev.emsp.controller;
 
+import java.util.ArrayList;
+
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -7,12 +9,13 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.chargev.emsp.model.dto.oem.EmspAccount;
 import com.chargev.emsp.model.dto.oem.EmspAccountRegistration;
-import com.chargev.emsp.model.dto.oem.EmspContarct;
+import com.chargev.emsp.model.dto.oem.EmspContract;
 import com.chargev.emsp.model.dto.oem.EmspRfidCard;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardModifyRequest;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardRequest;
@@ -37,28 +40,32 @@ public class OemController {
 
     @PostMapping("/registrations")
     @Operation(summary = "1-1. eMSP 회원 등록", description = "OEM 회원 정보와 매칭되는 eMSP 회원 등록(생성)")
-    public ApiResponseObject<EmspAccount> registerAccount(@RequestBody EmspAccountRegistration request) {
-        // eMSP 가입 프로세스를 진행한다.
-
-        // 응답바디 생성
+    public ApiResponseObject<EmspAccount> registerAccount(@PathVariable("version") String version, 
+    @RequestBody EmspAccountRegistration request,
+    @RequestHeader("Authorization") String authorization
+    ) 
+    {
         ApiResponseObject<EmspAccount> response = new ApiResponseObject<>();
+
+        // eMSP 가입 프로세스를 진행한다.
+        
+        // 응답바디 생성
+
 
         // 가입 성공했다면
         response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-        response.setStatusMessage("Success");
+        response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
         // 보내줘야 하는 데이터
-        EmspAccount emsp_account = new EmspAccount();
-        response.setData(emsp_account);
+        EmspAccount emspAccount = new EmspAccount();
+        response.setData(emspAccount);
 
         return response;
     }
 
     @GetMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-2. eMSP 회원 조회)", description = "eMSP 회원 정보 조회")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-    })
-    public ApiResponseObject<EmspAccount> getAccount(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    public ApiResponseObject<EmspAccount> getAccount(@PathVariable("version") String version,
             @PathVariable("emsp_account_key") String emspAccountKey) {
         // eMSP 회원 조회 프로세스를 진행한다.
 
@@ -77,10 +84,8 @@ public class OemController {
 
     @PatchMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-3. eMSP 회원 수정", description = "eMSP 회원 정보 변경")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-    })
-    public ApiResponseObject<EmspAccount> patchAccount(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    public ApiResponseObject<EmspAccount> patchAccount(@PathVariable("version") String version,
             @PathVariable("emsp_account_key") String emspAccountKey) {
         // eMSP 회원 변경 프로세스를 진행한다.
         // 실제로 변경할 내용은 body로 받아야 할 것 같은데, 아직 설계가 덜 끝난 것 같아서 body부분은 만들어놓지 않았음
@@ -92,19 +97,16 @@ public class OemController {
         response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
         response.setStatusMessage("Success");
         // 보내줘야 하는 데이터 (아직 미정. 가입시와 동일하게 Account 통째로 보내주는 것으로 작성해둠)
-        EmspAccount emsp_account = new EmspAccount();
-        response.setData(emsp_account);
+        EmspAccount emspAccount = new EmspAccount();
+        response.setData(emspAccount);
 
         return response;
     }
 
     @DeleteMapping("/accounts/{emsp_account_key}")
     @Operation(summary = "1-4. eMSP 회원 탈퇴(삭제)", description = "eMSP 회원 정보 삭제")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-    })
-    public ApiResponseString deleteAccount(
-
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    public ApiResponseString deleteAccount(@PathVariable("version") String version,
         @PathVariable("emsp_account_key") String emspAccountKey) {
 
         // eMSP 회원 삭제 프로세스를 진행한다.
@@ -122,77 +124,69 @@ public class OemController {
 
     @GetMapping("/accounts/{emsp_account_key}/contract")
     @Operation(summary = "2-1. 계약 목록 조회", description = "특정 회원의 계약 목록을 조회한다.")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-    })
-    public ApiResponseObjectList<EmspContarct> getContracts(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    public ApiResponseObjectList<EmspContract> getContracts(@PathVariable("version") String version, 
         @PathVariable("emsp_account_key") String emspAccountKey) {
         // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다.
 
-        ApiResponseObjectList<EmspContarct> response = new ApiResponseObjectList<>();
+        ApiResponseObjectList<EmspContract> response = new ApiResponseObjectList<>();
 
         return response;
     }
 
     @PostMapping("/accounts/{emsp_account_key}/contracts")
     @Operation(summary = "2-2. 계약 생성", description = "입력 vin이 유효한 Contract를 가지고 있을 경우, Contract 생성")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-    })
-    public ApiResponseObjectList<EmspContarct> postContract(
-        @RequestBody OemVehicleInfo vehicle_info) {
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    public ApiResponseObjectList<EmspContract> postContract(@PathVariable("version") String version,
+        @PathVariable("emsp_account_key") String emspAccountKey,
+        @RequestBody OemVehicleInfo vehicleInfo) {
         // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다.
 
-        ApiResponseObjectList<EmspContarct> response = new ApiResponseObjectList<>();
-
+        ApiResponseObjectList<EmspContract> response = new ApiResponseObjectList<>();
+        EmspContract conteContarct = new EmspContract();
+        response.setData(new ArrayList<>());
         return response;
     }
 
     @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-3. 계약 조회", description = "특정 회원의 특정 계약을 조회한다.")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-        @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
-    })
-    public ApiResponseObject<EmspContarct> getContract(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789")
+    public ApiResponseObject<EmspContract> getContract(
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 단건을 조회한다.
 
-        ApiResponseObject<EmspContarct> response = new ApiResponseObject<>();
+        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
 
         return response;
     }
 
     @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-4. 계약 수정", description = "특정 회원의 특정 계약을 수정한다")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-        @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
-    })
-    public ApiResponseObject<EmspContarct> patchContract(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789")
+    public ApiResponseObject<EmspContract> patchContract(
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
-        @RequestBody EmspContarct contract) {
+        @RequestBody EmspContract contract) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 단건의 정보를 변경한다.
 
-        ApiResponseObject<EmspContarct> response = new ApiResponseObject<>();
+        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
 
         return response;
     }
 
     @DeleteMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}")
     @Operation(summary = "2-6. 계약 해지(삭제)", description = "특정 회원의 특정 계약을 해지(삭제)한다")
-    @Parameters({
-        @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
-        @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
-    })
-    public ApiResponseObject<EmspContarct> deleteContract(
+    @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
+    @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789")
+    public ApiResponseObject<EmspContract> deleteContract(
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 단건을 해지(삭제)한다.
 
-        ApiResponseObject<EmspContarct> response = new ApiResponseObject<>();
+        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
 
         return response;
     }
@@ -203,12 +197,12 @@ public class OemController {
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
     })
-    public ApiResponseObject<EmspContarct> getDriverGroupByContract(
+    public ApiResponseObject<EmspContract> getDriverGroupByContract(
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 DriverGroup을 조회한다.
 
-        ApiResponseObject<EmspContarct> response = new ApiResponseObject<>();
+        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
 
         return response;
     }

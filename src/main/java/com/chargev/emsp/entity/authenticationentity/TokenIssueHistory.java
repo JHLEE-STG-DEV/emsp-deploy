@@ -1,5 +1,7 @@
 package com.chargev.emsp.entity.authenticationentity;
 
+import java.util.Date;
+
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
@@ -27,15 +29,15 @@ public class TokenIssueHistory {
 
     @Column(name = "ISSUE_DATE", columnDefinition = "DATE", nullable = false)
     @CreationTimestamp
-    private int issueDate;
+    private Date issueDate;
 
-    @Column(name = "ISSUE_STATUS", columnDefinition = "INT", nullable = false)
+    @Column(name = "ISSUE_STATUS", columnDefinition = "INT", nullable = false) // 발급상태 0, 발급요청, 1 발급완료, 4 취소 
     private int issueStatus;
 
     @Column(name = "TOKEN", columnDefinition = "VARCHAR(2048)")
     private String token;
 
-    // 발급 요청자가 발급한 토큰인지, 시스템이 발급한 토큰인지, 관리자가 발급한 토큰인지 발급자를 명시한다. 
+    // 발급 요청자가 발급한 토큰인지, 시스템이 발급한 토큰인지, 관리자가 발급한 토큰인지 발급자를 명시한다. 1. 요청자, 2, 시스템, 4 관리자 
     @Column(name = "TOKEN_TYPE", columnDefinition = "INT", nullable = false)
     private int tokenType;
 
@@ -50,6 +52,6 @@ public class TokenIssueHistory {
     // 최종 업데이트 시각을 기록한다.
     @Column(name = "UPDATED_DATE", columnDefinition = "DATE")
     @CreationTimestamp
-    private int updatedDate;
+    private Date updatedDate;
 
 }

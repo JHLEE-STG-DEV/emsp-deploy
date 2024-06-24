@@ -7,28 +7,30 @@ import org.hibernate.annotations.CreationTimestamp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.IdClass;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Table(name = "EV_AUTH_PERMISSION_GROUP")
+@Table(name = "EV_AUTH_PERMISSION")
 @Entity
 @Data
 
-public class PermissionGroup {
-    // GROUP ID = SUBJECT_TYPE(3) + CODE(3)
+@IdClass(PermissionGroupPK.class)
+public class Permission {
     @Id
-    @Column(name = "GROUP_ID", columnDefinition = "CHAR(6)", nullable = false, unique = true)
+//	@ManyToOne 
+//    @JoinTable(name = "EV_AUTH_PERMISSION_BASE", joinColumns = @JoinColumn(name = "PERMISSION_ID"), inverseJoinColumns = @JoinColumn(name = "PERMISSION_ID"))
+    @Column(name = "PERMISSION_ID", columnDefinition = "VARCHAR(32)", nullable = false)
+    private String permissionId;
+
+    @Id
+//   @ManyToOne(optional = false)
+//    @JoinTable(name = "EV_AUTH_PERMISSION_GROUP", joinColumns = @JoinColumn(name = "GROUP_ID"), inverseJoinColumns = @JoinColumn(name = "GROUP_ID"))
+    @Column(name = "GROUP_ID", columnDefinition = "CHAR(6)", nullable = false)
     private String groupId;
-
-    @Column(name = "GROUP_NAME", columnDefinition = "VARCHAR(32)", nullable = false)
-    private String groupName;
-
-    @Column(name = "GROUP_DESCRIPTION", columnDefinition = "VARCHAR(255)")
-    private String groupDescription;
-
-    // 관리자 그룹, 사용자 그룹 등을 다시 분리 처리함 
-    @Column(name = "GROUP_TYPE", columnDefinition = "INT", nullable = false)
-    private int groupType;
 
     @CreationTimestamp
     @Column(name = "CREATED_DATE", columnDefinition = "DATE", nullable = false)
@@ -47,3 +49,4 @@ public class PermissionGroup {
     private Integer deleted;    
 
 }
+

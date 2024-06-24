@@ -1,7 +1,5 @@
 package com.chargev.emsp.model.dto.response;
 
-import java.time.ZonedDateTime;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -10,7 +8,7 @@ import lombok.Data;
 
 @Data
 public class ApiResponseObject<T> {
-    @Schema(description = "상태 코드(OCPI 기준)", example="1000")
+    @Schema(description = "상태 코드(OCPI 기준)", example="1000", type="OcpiResponseStatusCode")
     @JsonProperty("status_code")
     private OcpiResponseStatusCode statusCode;
     @Schema(description = "상태 메시지", example="Success")
@@ -18,7 +16,7 @@ public class ApiResponseObject<T> {
     private String statusMessage;
     @Schema(description = "타임스탬프")
     @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
-    private ZonedDateTime timestamp;
+    private String timestamp;
     @Schema(description = "데이터")
     private T data;
 }

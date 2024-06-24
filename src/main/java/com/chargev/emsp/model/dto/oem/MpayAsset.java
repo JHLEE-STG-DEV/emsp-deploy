@@ -23,10 +23,10 @@ public class MpayAsset {
     private boolean invalid;
     @Schema(description = "Network Transaction Reference. This field is only returned at the end of card tokenization with Javascript library. If an NTR is generated during tokenization GPP will add it to asset that is returned with the Javascript SDK's callback. This field won't appear in Asset responses in any other endpoint. This value can be used for creating transactions that are initiated by merchant. see CreateTransactionRequest for details.")
     private String networkTransactionReference;
-    @Schema(description = "자산이 creditcard일 경우 자산 상세 정보")
+    @Schema(description = "자산이 creditcard일 경우 자산 상세 정보", type="MpayAssetData")
     private MpayAssetData data;
-    @Schema(description = "자산이 paypal 경우 자산 상세 정보")
+    @Schema(description = "자산이 paypal 경우 자산 상세 정보", type = "MpayAssetPayPalBillingData")
     private MpayAssetPayPalBillingData paypalBillingData;
-    @Schema(description = "Merchant Tags (array of strings)", example="[\"subscription\"]")
+    @Schema(description = "Merchant Tags (array of strings)", example="[\"subscription\"]", type="array", implementation=String.class)
     private List<String> merchantTags; // 
 }

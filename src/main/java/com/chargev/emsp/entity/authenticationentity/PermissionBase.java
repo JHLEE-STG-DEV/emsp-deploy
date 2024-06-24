@@ -21,6 +21,9 @@ public class PermissionBase {
     @Column(name = "PERMISSION_NAME", columnDefinition = "VARCHAR(32)", nullable = false)
     private String permissionName;
 
+    @Column(name = "PERMISSION_SCOPE", columnDefinition = "VARCHAR(16)", nullable = false)
+    private String permissionScope;
+
     @Column(name = "PERMISSION_DESC", columnDefinition = "VARCHAR(255)")
     private String permissionDesc;
 
@@ -39,5 +42,9 @@ public class PermissionBase {
 
     @Column(name = "UPDATED_USER", columnDefinition = "CHAR(32)")
     private String updatedUser;
+
+    @Column(name = "DELETED", columnDefinition = "INT", nullable = false)
+    private Integer deleted;    
+
 
 }

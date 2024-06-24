@@ -6,12 +6,12 @@ import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
-
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -57,9 +57,10 @@ public class PncController {
                       kafka : [MSG-EMSP-PNC-CONTRACT] 로 변경된 계약 정보 전송
                       """
     )
-    public KpipApiResponse suspension(@RequestBody PncReqBodyContractSuspension request) {
+    public KpipApiResponse suspension(@RequestBody PncReqBodyContractSuspension request, @RequestHeader("Authorization") String authorization) {
         // OEM 프로비저닝 변경으로 생성된 기존 계약을 삭제(만료)처리해야 하는 상황을 KEPCO가 알려줄 때 호출함.
         // 들어온 body의 pcid에 해당하는 계약을 삭제(만료) 시키고 그에 따른 응답을 반환한다.
+        KpipApiResponse response = new KpipApiResponse();
 
         // 1. 요청바디의 값 확인
         // 1-1. 프로비저닝 변경 사유 ('Update' or 'Delete')
@@ -73,7 +74,7 @@ public class PncController {
         PncContract kafkaObject = new PncContract();
 
         // 아래는 KPIP로 보내줘야하는 응답.
-        KpipApiResponse response = new KpipApiResponse();
+
         response.setResultCode("200");
         response.setResultMsg("Success");
 
@@ -89,7 +90,7 @@ public class PncController {
                       kafka : [MSG-EMSP-EVSE-CERTIFICATE] 로 발급된 인증서 정보 전송
                       """
     )
-    public KpipApiResponse issueCert(@RequestBody PncReqBodyIssueCert request) {
+    public KpipApiResponse issueCert(@RequestBody PncReqBodyIssueCert request, @RequestHeader("Authorization") String authorization) {
 
         // 1. 요청바디의 값 확인
         // 1-1. csr
@@ -148,8 +149,9 @@ public class PncController {
             String pemLeafCert = certificateService.convertToPEM(leafCert);
             kafkaObject.setCertificateChain(pemSubCa2);
             kafkaObject.setCertificate(pemLeafCert);
+            // TODO 스트링으로 변환했을 때 포맷이 맞는지 체크 
             ZonedDateTime zonedExpiredDate = ZonedDateTime.ofInstant(certificateService.getExpiredDate(leafCert).toInstant(), ZoneId.of("UTC"));
-            kafkaObject.setExpiredDate(zonedExpiredDate);
+            kafkaObject.setExpiredDate(zonedExpiredDate.toString());
 
             // 이부분이 로직이 아직 없음. 인증서 상태를 NORMAL, EXPIRED, TERMINATION로 전달해야 하는데,
             // KEPCO에서 바로 내려오지는 않아서 발급된 인증서를 다시 한 번 검증해서 보내야할지 (불필요해보여서, 문의해놓음)
@@ -201,7 +203,7 @@ public class PncController {
                       kafka : [MSG-EMSP-EVSE-CERTIFICATE] 로 인증서 폐기 상태 업데이트
                       """
     )
-    public KpipApiResponse revokeCert(@RequestBody PncReqBodyRevokeCert request) {
+    public KpipApiResponse revokeCert(@RequestBody PncReqBodyRevokeCert request, @RequestHeader("Authorization") String authorization) {
 
         // 1. 요청바디의 값 확인
         // 1-1. CertificateHashData
@@ -275,7 +277,7 @@ public class PncController {
                       kafka : [MSG-EMSP-PNC-CONTRACT] 로 인증서 계약 인증서 정보 전송
                       """
     )
-    public KpipApiResponse issueContract(@RequestBody PncReqBodyIssueContract request) {
+    public KpipApiResponse issueContract(@RequestBody PncReqBodyIssueContract request, @RequestHeader("Authorization") String authorization) {
 
         // 1. 요청바디의 값 확인
         // 1-1. pcid (vin 차대번호)
@@ -341,13 +343,14 @@ public class PncController {
             String pemCert = certificateService.convertToPEM(contCert);
             kafkaObject.setCertificate(pemCert);
             // (2) 받은 contCert로부터 만료날짜 추출
+            // TODO toString() 의 날짜 적격으로 조정 
             Date expiredDate = certificateService.getExpiredDate(contCert);
             ZonedDateTime zonedExpiredDate = ZonedDateTime.ofInstant(expiredDate.toInstant(), ZoneId.of("UTC"));
-            kafkaObject.setExpiredDate(zonedExpiredDate);
+            kafkaObject.setExpiredDate(zonedExpiredDate.toString());
             // (3) 받은 contCert로부터 발급날짜 추출
             Date requestDate = certificateService.getExpiredDate(contCert);
             ZonedDateTime zonedRequestdDate = ZonedDateTime.ofInstant(requestDate.toInstant(), ZoneId.of("UTC"));
-            kafkaObject.setRequestDate(zonedRequestdDate);
+            kafkaObject.setRequestDate(zonedRequestdDate.toString());
             // 이건 추가 논의 필요해 보이는데 우선 기본값으로 세팅
             kafkaObject.setAuthorities(Authorities.KEPCO);
             kafkaObject.setStatus(CertStatus.NORMAL);
@@ -387,7 +390,7 @@ public class PncController {
 
     @PostMapping("/authorize")
     @Operation(summary = "2-3. PNC 충전 인증", description = "CPO로부터 PnC 인증요청을 수신한다.")
-    public KpipApiResponse pncAuthorize(@RequestBody KpipReqBodyEmaid request) {
+    public KpipApiResponse pncAuthorize(@RequestBody KpipReqBodyEmaid request, @RequestHeader("Authorization") String authorization) {
 
         // 1. PEM으로 들어온 인증서, 혹은 ecKey를 가지고 그에 매칭되는 emaid를 찾는다.
         // PnC account 체크

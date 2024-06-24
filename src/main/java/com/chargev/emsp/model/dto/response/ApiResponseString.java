@@ -1,7 +1,5 @@
 package com.chargev.emsp.model.dto.response;
 
-import java.time.ZonedDateTime;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -18,7 +16,7 @@ public class ApiResponseString {
     private String statusMessage;
     @Schema(description = "타임스탬프")
     @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")
-    private ZonedDateTime timestamp;
+    private String timestamp;
     @Schema(description = "데이터")
     private String data;
 }
