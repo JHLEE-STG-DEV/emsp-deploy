@@ -20,7 +20,7 @@ public class VersionInterceptorForOem implements HandlerInterceptor {
     private final DateTimeFormatterService dateTimeFormatterService;
     private final ObjectMapper objectMapper;
 
-        @Autowired
+    @Autowired
     public VersionInterceptorForOem(DateTimeFormatterService dateTimeFormatterService) {
         this.dateTimeFormatterService = dateTimeFormatterService;
         this.objectMapper = new ObjectMapper(); // Jackson ObjectMapper

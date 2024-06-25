@@ -8,8 +8,8 @@ public class KpipReqBodyRevokeContractCert {
 
     @Schema(description = "emaId(계약ID)", example = "KRCEVCA0123456")
     private String emaid;
-    @Schema(description = "emaId(계약ID)", example = "KRCEVCA0123456")
+    @Schema(description = "CertificateHashData")
     private CertificateHashData contractCertificateHashData;
-    @Schema(description = "emaId(계약ID)", example = "KRCEVCA0123456")
+    @Schema(description = "ecKey CPO에서 올라오는 충전기 고유 식별자")
     private Long ecKey;
 }

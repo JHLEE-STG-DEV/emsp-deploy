@@ -8,7 +8,7 @@ public class PncReqBodyIssueCert {
 
     @Schema(required=true, description = "CSR")
     private String certificateSigningRequest;
-    @Schema(required=true, description = "충전기 고유 식별자")
+    @Schema(required=true, description = "ecKey CPO에서 올라오는 충전기 고유 식별자")
     private Long ecKey;
     @Schema(required=true, description = "NEW(신규) / UPDATE(갱신)", defaultValue="NEW", example = "NEW")
     private String issueType;
