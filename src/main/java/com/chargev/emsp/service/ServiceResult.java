@@ -1,6 +1,10 @@
 package com.chargev.emsp.service;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Optional;
+
+import com.chargev.emsp.service.log.CheckpointReference;
 
 import lombok.Data;
 
@@ -9,7 +13,7 @@ public class ServiceResult<T> {
     private boolean success;
     private int errorCode = 500;
     private String errorMessage = "Unknwon Error";
-    private String refId;
+    //private String refId;
     private Optional<T> data = Optional.empty();
 
     public boolean getSuccess() {
@@ -37,5 +41,8 @@ public class ServiceResult<T> {
         this.success = false;
         this.data = Optional.empty();
     }
+
+    // 로그용
+    private List<CheckpointReference> checkpoints = new LinkedList<>();
 
 }

@@ -20,7 +20,7 @@ public class EvseCertificate {
     @Schema(description = "발급된 certificate (발급 실패인 경우 null)")
     private String certificate;
     @Schema(description = "발급된 expiredDate (발급 실패인 경우 null)")
-    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private String expiredDate;
     @Schema(description = "인증서 상태 NORMAL, EXPIRED, TERMINATION (발급 실패인 경우 null)")
     private CertStatus certificateStatus;

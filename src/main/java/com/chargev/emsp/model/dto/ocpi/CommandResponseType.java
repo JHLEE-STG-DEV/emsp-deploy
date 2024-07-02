@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum CommandResponseType {
-  NOT_SUPPORTED("NOT_SUPPORTED"),
+    NOT_SUPPORTED("NOT_SUPPORTED"),
     REJECTED("REJECTED"),
     ACCEPTED("ACCEPTED"),
     UNKNOWN_SESSION("UNKNOWN_SESSION");

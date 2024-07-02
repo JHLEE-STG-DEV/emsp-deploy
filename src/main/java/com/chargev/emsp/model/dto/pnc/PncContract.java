@@ -26,9 +26,9 @@ public class PncContract {
     @Schema(description="상태 (NORMAL, TERMINATION, EXPIRED)")
     private CertStatus status;
     @Schema(description = "만료일시 (ISO8601)")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private String expiredDate;
     @Schema(description = "요청일시 (ISO8601)")
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private String requestDate;
 }

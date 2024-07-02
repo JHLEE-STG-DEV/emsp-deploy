@@ -36,7 +36,7 @@ public class AuthInterceptorForPnc implements HandlerInterceptor {
         }
 
         String token = authorization.substring(7);
-        if (!jwtTokenService.validateToken(token, "PNC", "*")) {
+        if (!jwtTokenService.validateToken(token, "PNC", "WRITE:PNCAPI_GENERAL;READ:PNCAPI_GENERAL")) {
             PncApiResponse apiResponse = new PncApiResponse();
             apiResponse.setResult(PncResponseResult.FAIL);
             apiResponse.setCode("401");

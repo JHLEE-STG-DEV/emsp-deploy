@@ -36,8 +36,8 @@ public class JwtTokenService {
     private static final String AUTH_IMPLICIT = "implicit";
     private static final String AUTH_CLIENT_CREDENTIALS = "client_credentials";
     private static final String AUTH_REFRESH_TOKEN = "refresh_token";
-    // 퍼블릭 키에 대해서 상태 유지를 할 수 있는 방법을 고민해야 함 
-    private static String oemPublicKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEicyEdsjOCk0qwzLQW6iedldkkWfarNZ041F21pTq4hT/ak46TVrBiSxeqrerQx2mm9YtzLASoJ75zhUOn7WgMQ==";
+    // 퍼블릭 키에 대해서 상태 유지를 할 수 있는 방법을 고민해야 함 ==> 키서버를 통해서 처리해 줘야 함 일반적으로는.
+    private static String genPubKey = "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEicyEdsjOCk0qwzLQW6iedldkkWfarNZ041F21pTq4hT/ak46TVrBiSxeqrerQx2mm9YtzLASoJ75zhUOn7WgMQ==";
 
     @PostConstruct
     public void init() {
@@ -63,7 +63,7 @@ public class JwtTokenService {
     }
 
     public PublicKey loadPublicKey(String type)  {
-        byte[] keyBytes = Base64.getDecoder().decode(oemPublicKey);
+        byte[] keyBytes = Base64.getDecoder().decode(genPubKey);
         X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
         try {
             KeyFactory kf = KeyFactory.getInstance("EC");

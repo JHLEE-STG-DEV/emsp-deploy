@@ -7,6 +7,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.spec.InvalidKeySpecException;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +39,7 @@ import com.chargev.emsp.service.cryptography.ECKeyPairService;
 import com.chargev.emsp.service.cryptography.JwtTokenService;
 import com.chargev.emsp.service.cryptography.KeyService;
 import com.chargev.emsp.service.cryptography.SHAService;
+import com.chargev.emsp.service.formatter.DateTimeFormatterService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -51,6 +54,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 
 public class AuthController {
+    private final DateTimeFormatterService dateTimeFormatterService;
+
     private final ECKeyPairService ecKeyPairService;
     private final ECDSASignatureService ecdsaSignatureService;
     private final JwtTokenService jwtTokenService;
@@ -152,6 +157,22 @@ public class AuthController {
         authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
         authSubject.setSubjectDesc("GSChargeV PNC Server User");
 
+        authSubject = new AuthSubject();
+        authSubject.setSubjectId("a1dca34e1f3b478884fafdffbf66ef48");
+        authSubject.setSubjectName("OCPITestUser");
+        authSubject.setSubjectEmail("test@test.com");
+        authSubject.setSubjectPhone("010-1234-5678");
+        authSubject.setSubjectPassword(shaService.sha256Hash("c0aeb5d2328d43ba87a24e9233d185b6", SALT_STRING));
+        authSubject.setCreatedDate(new Date());
+        authSubject.setUpdatedDate(new Date());
+        authSubject.setCreatedUser("00000000000000000000000000000000");
+        authSubject.setUpdatedUser("00000000000000000000000000000000");
+        authSubject.setDeleted(0);
+        authSubject.setGroupId("OCP001");
+        authSubject.setSubjectType("OCP");
+        authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
+        authSubject.setSubjectDesc("GSChargeV OCPI Server User");
+
         PermissionBase permissionBase = new PermissionBase();
         permissionBase.setPermissionId("4c4ab7f112bc4da0a69ffa5759c5a862");
         permissionBase.setPermissionName("READ");
@@ -177,6 +198,55 @@ public class AuthController {
 
         authService.savePermissionBase(permissionBase);
 
+        permissionBase = new PermissionBase();
+        permissionBase.setPermissionId("ad05ab75b4b845d1961facf19d595f55");
+        permissionBase.setPermissionName("READ");
+        permissionBase.setPermissionScope("PNCAPI_GENERAL");
+        permissionBase.setPermissionDesc("Read Permission");
+        permissionBase.setCreatedDate(new Date());
+        permissionBase.setUpdatedDate(new Date());
+        permissionBase.setCreatedUser("00000000000000000000000000000000");
+        permissionBase.setUpdatedUser("00000000000000000000000000000000");
+        permissionBase.setDeleted(0);
+
+        authService.savePermissionBase(permissionBase);
+
+        permissionBase.setPermissionId("c760b41adbc2499a8278724fd7e9f808");
+        permissionBase.setPermissionName("WRITE");
+        permissionBase.setPermissionScope("PNCAPI_GENERAL");
+        permissionBase.setPermissionDesc("Read Permission");
+        permissionBase.setCreatedDate(new Date());
+        permissionBase.setUpdatedDate(new Date());
+        permissionBase.setCreatedUser("00000000000000000000000000000000");
+        permissionBase.setUpdatedUser("00000000000000000000000000000000");
+        permissionBase.setDeleted(0);
+
+        authService.savePermissionBase(permissionBase);
+
+        permissionBase = new PermissionBase();
+        permissionBase.setPermissionId("956a12f5165e465f96af3df3fd3164c8");
+        permissionBase.setPermissionName("READ");
+        permissionBase.setPermissionScope("OCPAPI_GENERAL");
+        permissionBase.setPermissionDesc("Read Permission");
+        permissionBase.setCreatedDate(new Date());
+        permissionBase.setUpdatedDate(new Date());
+        permissionBase.setCreatedUser("00000000000000000000000000000000");
+        permissionBase.setUpdatedUser("00000000000000000000000000000000");
+        permissionBase.setDeleted(0);
+
+        authService.savePermissionBase(permissionBase);
+
+        permissionBase.setPermissionId("9d741d9b0d0246d6964f1b8fc869a280");
+        permissionBase.setPermissionName("WRITE");
+        permissionBase.setPermissionScope("OCPAPI_GENERAL");
+        permissionBase.setPermissionDesc("Read Permission");
+        permissionBase.setCreatedDate(new Date());
+        permissionBase.setUpdatedDate(new Date());
+        permissionBase.setCreatedUser("00000000000000000000000000000000");
+        permissionBase.setUpdatedUser("00000000000000000000000000000000");
+        permissionBase.setDeleted(0);
+
+        authService.savePermissionBase(permissionBase);
 
 
         PermissionGroup permissionGroup = new PermissionGroup();
@@ -195,6 +265,18 @@ public class AuthController {
         permissionGroup.setGroupId("PNC001");
         permissionGroup.setGroupName("PNC Group");
         permissionGroup.setGroupDescription("PNC Group");
+        permissionGroup.setCreatedDate(new Date());
+        permissionGroup.setUpdatedDate(new Date());
+        permissionGroup.setCreatedUser("00000000000000000000000000000000");
+        permissionGroup.setUpdatedUser("00000000000000000000000000000000");
+        permissionGroup.setDeleted(0);
+
+        authService.savePermissionGroup(permissionGroup);
+
+        permissionGroup = new PermissionGroup();
+        permissionGroup.setGroupId("OCP001");
+        permissionGroup.setGroupName("OCPI Group");
+        permissionGroup.setGroupDescription("OCPI Group");
         permissionGroup.setCreatedDate(new Date());
         permissionGroup.setUpdatedDate(new Date());
         permissionGroup.setCreatedUser("00000000000000000000000000000000");
@@ -223,8 +305,10 @@ public class AuthController {
         permission.setUpdatedUser("00000000000000000000000000000000");
         permission.setDeleted(0);
 
+        authService.savePermission(permission);
+
         permission = new Permission();
-        permission.setPermissionId("4c4ab7f112bc4da0a69ffa5759c5a862");
+        permission.setPermissionId("c760b41adbc2499a8278724fd7e9f808");
         permission.setGroupId("PNC001");
         permission.setCreatedDate(new Date());
         permission.setUpdatedDate(new Date());
@@ -235,8 +319,30 @@ public class AuthController {
         authService.savePermission(permission);
 
         permission = new Permission();
-        permission.setPermissionId("b154cb1370314264ad164cf982bd99f5");
+        permission.setPermissionId("ad05ab75b4b845d1961facf19d595f55");
         permission.setGroupId("PNC001");
+        permission.setCreatedDate(new Date());
+        permission.setUpdatedDate(new Date());
+        permission.setCreatedUser("00000000000000000000000000000000");
+        permission.setUpdatedUser("00000000000000000000000000000000");
+        permission.setDeleted(0);
+
+        authService.savePermission(permission);
+
+        permission = new Permission();
+        permission.setPermissionId("956a12f5165e465f96af3df3fd3164c8");
+        permission.setGroupId("OCP001");
+        permission.setCreatedDate(new Date());
+        permission.setUpdatedDate(new Date());
+        permission.setCreatedUser("00000000000000000000000000000000");
+        permission.setUpdatedUser("00000000000000000000000000000000");
+        permission.setDeleted(0);
+
+        authService.savePermission(permission);
+
+        permission = new Permission();
+        permission.setPermissionId("9d741d9b0d0246d6964f1b8fc869a280");
+        permission.setGroupId("OCP001");
         permission.setCreatedDate(new Date());
         permission.setUpdatedDate(new Date());
         permission.setCreatedUser("00000000000000000000000000000000");
@@ -245,6 +351,7 @@ public class AuthController {
 
         authService.savePermission(permission);
         
+
         return authService.saveAuthSubject(authSubject);
 
     }
@@ -277,6 +384,7 @@ public class AuthController {
         }
 
         ApiResponseString response = new ApiResponseString();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
         // if(!version.equals("V001")) {
         //     response.setStatusCode(OcpiResponseStatusCode.UNSUPPORTED_VERSION);
@@ -305,12 +413,16 @@ public class AuthController {
         }
 
         Keys asymKeys = null;
+        // 현재는 비동기 키를 전부 동일하게 처리함 
         if(authSubject.getSubjectType().equals("OEM")) {
             asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
         }
         else if(authSubject.getSubjectType().equals("PNC")) {
             asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
         }
+        else if(authSubject.getSubjectType().equals("OCP")) {
+            asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
+        }        
         else {
             response.setStatusCode(OcpiResponseStatusCode.INVALID_PARAMETER);
             response.setStatusMessage(OcpiResponseStatusCode.INVALID_PARAMETER.toString());
@@ -321,8 +433,6 @@ public class AuthController {
             response.setStatusMessage(OcpiResponseStatusCode.SERVER_ERROR.toString());
             return response;
         }
-
-
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("iss", "GSChargeV");

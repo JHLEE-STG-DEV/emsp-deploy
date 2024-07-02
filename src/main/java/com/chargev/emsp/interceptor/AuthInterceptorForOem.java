@@ -3,7 +3,6 @@ package com.chargev.emsp.interceptor;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
@@ -15,19 +14,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 
 @Component
+@RequiredArgsConstructor
 public class AuthInterceptorForOem implements HandlerInterceptor {
     private final JwtTokenService jwtTokenService;
     private final DateTimeFormatterService dateTimeFormatterService;
     private final ObjectMapper objectMapper;
 
-    @Autowired
-    public AuthInterceptorForOem(JwtTokenService jwtTokenService, DateTimeFormatterService dateTimeFormatterService) {
-        this.jwtTokenService = jwtTokenService;
-        this.dateTimeFormatterService = dateTimeFormatterService;
-        this.objectMapper = new ObjectMapper(); // Jackson ObjectMapper
-    }
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
         String authorization = request.getHeader("Authorization");

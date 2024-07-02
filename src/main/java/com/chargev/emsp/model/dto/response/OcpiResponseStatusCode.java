@@ -15,6 +15,7 @@ public enum OcpiResponseStatusCode {
     UNKNOWN_LOCATION(2003, "알 수 없는 위치"),
     UNKNOWN_TOKEN(2004, "알 수 없는 토큰"),
     CUSTOM_CLIENT_ERROR(2900, "사용자 지정 클라이언트 오류 상태 코드에 대해 예약된 범위"),
+    UNKNOWN_EMSP_CONTRACT_ID(2901, "유효한 eMSP 계약 ID가 없음"),
 
     // Server errors
     SERVER_ERROR(3000, "일반 서버 오류 코드"),
@@ -22,6 +23,7 @@ public enum OcpiResponseStatusCode {
     UNSUPPORTED_VERSION(3002, "지원되지 않는 버전"),
     ENDPOINT_MISMATCH(3003, "EndPoint(or expected EndPoint)가 일치하지 않음"),
     CUSTOM_SERVER_ERROR(3900, "사용자 지정 서버 오류 상태 코드에 대해 예약된 범위"),
+    ID_MISMATCH(3903, "EVSE UID, LOCATION ID 등 일부 PARAMETER를 서버에서 찾을 수 없음"),
 
     // Hub errors
     HUB_ERROR(4000, "일반 오류 코드"),
