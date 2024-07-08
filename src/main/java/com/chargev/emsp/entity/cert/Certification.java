@@ -37,11 +37,19 @@ public class Certification {
 
 
 
-    // 0 : 정상, 1: Expired, 2: Revoked
+    // -1 : 진행전 0 : 정상, 1: Expired, 2: Revoked
     @Column(name = "STATUS", columnDefinition = "INT")
     private int status;
 
     
+    // 요청도 관리한다.
+    @Column(name = "REQUEST_DATE", columnDefinition = "DATETIME")
+    private Date requestDate;
+    @Column(name = "CSR", columnDefinition = "VARCHAR(1024)")
+    private String csr;
+
+
+
     @Column(name = "CREATED_DATE", columnDefinition = "DATETIME")
     private Date createdDate;
     @Column(name = "EXPIRE_DATE", columnDefinition = "DATETIME")
@@ -49,4 +57,8 @@ public class Certification {
     @Column(name = "REVOKED_DATE", columnDefinition = "DATETIME")
     private Date revokedDate;
 
+    
+    
+    @Column(name= "FULL_CERT", columnDefinition = "MEDIUMTEXT")
+    private String fullCert;
 }

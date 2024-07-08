@@ -17,7 +17,10 @@ public class ServiceResult<T> {
     private Optional<T> data = Optional.empty();
 
     public boolean getSuccess() {
-        return this.success && data.isPresent();
+        return this.success && (data.isPresent());
+    }
+    public boolean isFail(){
+        return !getSuccess();
     }
 
     public T get() {
@@ -32,7 +35,7 @@ public class ServiceResult<T> {
 
         this.errorCode = 200;
         this.success = true;
-        this.data = Optional.of(data);
+        this.data = Optional.ofNullable(data);
     }
 
     public void fail(int errorCode, String message) {
@@ -44,5 +47,4 @@ public class ServiceResult<T> {
 
     // 로그용
     private List<CheckpointReference> checkpoints = new LinkedList<>();
-
 }

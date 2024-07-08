@@ -13,12 +13,12 @@ import org.springframework.stereotype.Service;
 
 import com.chargev.emsp.entity.cert.Certification;
 import com.chargev.emsp.entity.cert.SubCertification;
-import com.chargev.emsp.model.dto.pnc.CertificateHashData;
+import com.chargev.emsp.model.dto.pnc.CertificateInfo;
 import com.chargev.emsp.model.dto.pnc.CertificationMeta;
-import com.chargev.emsp.model.dto.pnc.HashAlgorithm;
 import com.chargev.emsp.repository.cert.CertificationRepository;
 import com.chargev.emsp.repository.cert.SubCertificationRepository;
 import com.chargev.emsp.service.ServiceResult;
+import com.chargev.emsp.service.cryptography.CertificateConversionService;
 import com.chargev.emsp.service.cryptography.SHAService;
 import com.chargev.utils.IdHelper;
 import com.chargev.utils.LocalFileManager;
@@ -26,13 +26,15 @@ import com.chargev.utils.LocalFileManager;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
-// 내부DB에 별도로 저장해서 관리함.
 @Service
 @RequiredArgsConstructor
 public class CertManageServiceImpl implements CertManageService {
     private final CertificationRepository certRepository;
     private final SubCertificationRepository subCertRepository;
+    private final CertificateConversionService conversionService;
     private static final Logger logger = LoggerFactory.getLogger(CertManageServiceImpl.class);
+    private static final Logger apiLogger = LoggerFactory.getLogger("API_LOGGER");
+
     private final SHAService shaService;
 
     private boolean objectLogActive = true;
@@ -42,7 +44,7 @@ public class CertManageServiceImpl implements CertManageService {
     @PostConstruct
     public void init() {
         try {
-            Path certDirectoryPath = Paths.get("/var/log/certs");
+            Path certDirectoryPath = Paths.get("/var/log/chargeV/certs");
             LocalFileManager.ensureDirectory(certDirectoryPath);
             leafCertDirectoryPath = certDirectoryPath.resolve("leaf");
             subCertDirectoryPath = certDirectoryPath.resolve("sub");
@@ -72,7 +74,7 @@ public class CertManageServiceImpl implements CertManageService {
 
         Optional<SubCertification> duplicated = Optional.empty();
         try {
-            duplicated = subCertRepository.findByHashedCert(hashedCert);
+            duplicated = subCertRepository.findFirstByHashedCert(hashedCert);
         } catch (Exception ex) {
             result.fail(500, "Failed to Query DB");
             return result;
@@ -87,6 +89,7 @@ public class CertManageServiceImpl implements CertManageService {
             newCert.setCertId(subCertId);
             newCert.setEcKey(ecKey);
             newCert.setHashedCert(hashedCert);
+            newCert.setFullCert(subDER);
 
             // 쌩으로 로컬에 저장.
             if (objectLogActive) {
@@ -135,23 +138,38 @@ public class CertManageServiceImpl implements CertManageService {
         cert.setCertId(certId);
         cert.setEcKey(ecKey);
         cert.setSubCertId(subCertId);
+    cert.setFullCert(leafPem);
 
         // 생성 타임스탬프
         cert.setCreatedDate(new Date());
 
         // 내용을 파싱해서 필요한것을 넣음.
+        try{
 
-        String issuerName = "";
-        String issuerKey = "";
-        String serialNumber = "";
+            CertificateInfo certInfo = conversionService.getCertInfoFromPEM(leafPem);
 
-        Date expireDate = new Date();
-
-        cert.setIssuerName(issuerName);
-        cert.setIssuerKey(issuerKey);
-        cert.setSerialNumber(serialNumber);
-        cert.setExpireDate(expireDate);
-
+            String issuerName = certInfo.getIssuerCN();
+            // issuerKey가 이게 맞는지 확인
+            String issuerKey = certInfo.getPublicKey();
+            String serialNumber = certInfo.getFormattedSerialNumber();
+            serialNumber = serialNumber.replace("0x", "");
+    
+            Date expireDate = certInfo.getExpirationDate();
+    
+            cert.setIssuerName(issuerName);
+            cert.setIssuerKey(issuerKey);
+            cert.setSerialNumber(serialNumber);
+            cert.setExpireDate(expireDate);
+    
+        }catch(Exception ex){
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG:CERT_PARSE_ERROR,  MESSAGE: {}, Request: {}",
+                        "인증서 분해 실패.",leafPem);
+            }
+            ex.printStackTrace();
+            result.fail(500, "Failed to parse PEM");
+            return result;
+        }
         // 쌩으로 로컬에 저장.
         if (objectLogActive) {
             try {
@@ -219,9 +237,9 @@ public class CertManageServiceImpl implements CertManageService {
     }
 
     @Override
-    public ServiceResult<CertificationMeta> findCertByHashData(Long ecKey, CertificateHashData hashed) {
+    public ServiceResult<CertificationMeta> findCertByPEM(Long ecKey, String pem) {
         ServiceResult<CertificationMeta> result = new ServiceResult<>();
-        if (ecKey == null || hashed == null) {
+        if (ecKey == null || pem == null) {
             result.fail(400, "Bad Request");
             return result;
         }
@@ -245,7 +263,7 @@ public class CertManageServiceImpl implements CertManageService {
         Certification matchedCert = null;
         for (Certification cert : activeCerts) {
             // 여러개면? 유일이라고 가정한다. 내용확인은 보내놓았다.
-            if (isSame(cert, hashed)) {
+            if (isSame(cert, pem)) {
                 matchedCert = cert;
             }
 
@@ -291,21 +309,10 @@ public class CertManageServiceImpl implements CertManageService {
         
     }
 
-    private boolean isSame(Certification cert, CertificateHashData hashed) {
-        HashAlgorithm algorithm = hashed.getHashAlgorithm();
-        // serialNumber 비교
-        if (!cert.getSerialNumber().equals(hashed.getSerialNumber())) {
+    private boolean isSame(Certification cert, String pem) {
+        if(cert.getFullCert() == null)
             return false;
-        }
-        // issuerName 비교
-        if (!hashed.getIssuerNameHash().equals(shaService.hash(algorithm, cert.getIssuerName()))) {
-            return false;
-        }
-        // issuerKey 비교
-        if (!hashed.getIssuerKeyHash().equals(shaService.hash(algorithm, cert.getIssuerKey()))) {
-            return false;
-        }
-        return true;
+            return cert.getFullCert().equals(pem);
     }
 
     private CertificationMeta buildMeta(Certification cert) {
@@ -313,6 +320,7 @@ public class CertManageServiceImpl implements CertManageService {
             return null;
         CertificationMeta meta = new CertificationMeta();
         meta.setCertId(cert.getCertId());
+meta.setFullCert(cert.getFullCert());
 
         return meta;
     }

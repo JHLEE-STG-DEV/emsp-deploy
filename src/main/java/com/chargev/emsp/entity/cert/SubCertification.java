@@ -20,4 +20,8 @@ public class SubCertification {
     
     @Column(name= "HASHED_CERT", columnDefinition = "VARCHAR(128)")
     private String hashedCert;
+    
+    @Column(name= "FULL_CERT", columnDefinition = "MEDIUMTEXT")
+    private String fullCert;
+    
 }

@@ -2,7 +2,10 @@ package com.chargev.emsp.controller;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +34,7 @@ import com.chargev.emsp.model.dto.response.ApiResponseObject;
 import com.chargev.emsp.model.dto.response.ApiResponseObjectList;
 import com.chargev.emsp.model.dto.response.ApiResponseString;
 import com.chargev.emsp.model.dto.response.OcpiResponseStatusCode;
+import com.chargev.emsp.service.dummy.DummyDataService;
 import com.chargev.emsp.service.formatter.DateTimeFormatterService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,6 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OcpiController {
     private final DateTimeFormatterService dateTimeFormatterService;
+    private final DummyDataService dummyDataService;
 
     @GetMapping("/locations")
     @Operation(summary = "1-1. locations - locations list", description = "{date_from}에서 {date_to} 사이에 마지막으로 업데이트된 위치 목록을 가져온다.")
@@ -66,55 +71,166 @@ public class OcpiController {
 
             ApiResponseObjectList<Location> result = new ApiResponseObjectList<>();
 
+            // Parse the date_from and date_to strings
+            ZonedDateTime fromDate;
+            ZonedDateTime toDate;
+            try {
+                fromDate = ZonedDateTime.parse(date_from);
+                toDate = ZonedDateTime.parse(date_to);
+            } catch (DateTimeParseException e) {
+                result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+                result.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                result.setStatusMessage("Invalid date format");
+                return result;
+            }
+
+            // Get the dummy data
+            List<Location> locations = dummyDataService.makeLocationList();
+
+            // Filter the locations by last_updated date
+            List<Location> filteredLocations = locations.stream()
+                    .filter(location -> {
+                        ZonedDateTime lastUpdated = ZonedDateTime.parse(location.getLast_updated());
+                        return (lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate)) && lastUpdated.isBefore(toDate);
+                    })
+                    .collect(Collectors.toList());
+
+            // Apply offset and limit for pagination
+            int start = Math.min(offset, filteredLocations.size());
+            int end = Math.min(offset + limit, filteredLocations.size());
+            List<Location> paginatedLocations = filteredLocations.subList(start, end);
+
             result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
             result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-            result.setStatusMessage("Success");      
-    
+            result.setStatusMessage("Success");
+            result.setData(paginatedLocations);
+
             return result;
     }
 
     @GetMapping("/locations/{location_id}")
     @Operation(summary = "1-2. locations - Get location by ID", description = "Retrieve details of a specific location by its ID.")
     public ApiResponseObject<Location> getLocationById(
-            @PathVariable @Parameter(description = "ID of the location", example = "123") String locationId) {
+            @PathVariable @Parameter(description = "ID of the location", example = "PI-200006") String location_id) {
 
             ApiResponseObject<Location> result = new ApiResponseObject<>();
 
+            // Get the dummy data
+            List<Location> locations = dummyDataService.makeLocationList();
+
+            // Find the location by ID
+            Optional<Location> location = locations.stream()
+                    .filter(loc -> loc.getId().equals(location_id))
+                    .findFirst();
+
             result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
-            result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-            result.setStatusMessage("Success");      
-    
+            
+            if (location.isPresent()) {
+                result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                result.setStatusMessage("Success");
+                result.setData(location.get());
+            } else {
+                result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                result.setStatusMessage("Location not found");
+                result.setData(null);
+            }
+
             return result;
     }
 
     @GetMapping("/locations/{location_id}/{evse_uid}")
     @Operation(summary = "1-3. locations - Get EVSE by ID", description = "Retrieve details of a specific EVSE by its UID within a location.")
     public ApiResponseObject<EVSE> getEvseById(
-            @PathVariable @Parameter(description = "ID of the location", example = "123") String locationId,
-            @PathVariable @Parameter(description = "UID of the EVSE", example = "evse123") String evseUid) {
+            @PathVariable @Parameter(description = "ID of the location", example = "PI-200006") String location_id,
+            @PathVariable @Parameter(description = "UID of the EVSE", example = "PI-200006-2111") String evse_uid) {
 
             ApiResponseObject<EVSE> result = new ApiResponseObject<>();
 
+            // Get the dummy data
+            List<Location> locations = dummyDataService.makeLocationList();
+
+            // Find the location by ID
+            Optional<Location> locationOpt = locations.stream()
+                    .filter(loc -> loc.getId().equals(location_id))
+                    .findFirst();
+
+            if (locationOpt.isPresent()) {
+                Location location = locationOpt.get();
+                // Find the EVSE by UID within the location
+                Optional<EVSE> evseOpt = location.getEvses().stream()
+                        .filter(evse -> evse.getUid().equals(evse_uid))
+                        .findFirst();
+
+                if (evseOpt.isPresent()) {
+                    result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                    result.setStatusMessage("Success");
+                    result.setData(evseOpt.get());
+                } else {
+                    result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                    result.setStatusMessage("EVSE not found");
+                    result.setData(null);
+                }
+            } else {
+                result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                result.setStatusMessage("Location not found");
+                result.setData(null);
+            }
+
             result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
-            result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-            result.setStatusMessage("Success");      
-    
             return result;
     }
 
     @GetMapping("/locations/{location_id}/{evse_uid}/{connector_id}")
     @Operation(summary = "1-4. locations - Get connector by ID", description = "Retrieve details of a specific connector by its ID within an EVSE.")
     public ApiResponseObject<Connector> getConnectorById(
-            @PathVariable @Parameter(description = "검색할 위치 개체의 location_id", example = "123") String locationId,
-            @PathVariable @Parameter(description = "검색할 EVSE의 evse_uid", example = "evse123") String evseUid,
-            @PathVariable @Parameter(description = "검색할 커넥터의 connector_id ", example = "connector456") String connectorId) {
+            @PathVariable @Parameter(description = "ID of the location", example = "PI-200006") String location_id,
+            @PathVariable @Parameter(description = "UID of the EVSE", example = "PI-200006-2111") String evse_uid,
+            @PathVariable @Parameter(description = "검색할 커넥터의 connector_id ", example = "1") String connector_id) {
 
             ApiResponseObject<Connector> result = new ApiResponseObject<>();
+            // Get the dummy data
+            List<Location> locations = dummyDataService.makeLocationList();
+
+            // Find the location by ID
+            Optional<Location> locationOpt = locations.stream()
+                    .filter(loc -> loc.getId().equals(location_id))
+                    .findFirst();
+
+            if (locationOpt.isPresent()) {
+                Location location = locationOpt.get();
+                // Find the EVSE by UID within the location
+                Optional<EVSE> evseOpt = location.getEvses().stream()
+                        .filter(evse -> evse.getUid().equals(evse_uid))
+                        .findFirst();
+
+                if (evseOpt.isPresent()) {
+                    EVSE evse = evseOpt.get();
+                    // Find the connector by ID within the EVSE
+                    Optional<Connector> connectorOpt = evse.getConnectors().stream()
+                            .filter(connector -> connector.getId().equals(connector_id))
+                            .findFirst();
+
+                    if (connectorOpt.isPresent()) {
+                        result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                        result.setStatusMessage("Success");
+                        result.setData(connectorOpt.get());
+                    } else {
+                        result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                        result.setStatusMessage("Connector not found");
+                        result.setData(null);
+                    }
+                } else {
+                    result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                    result.setStatusMessage("EVSE not found");
+                    result.setData(null);
+                }
+            } else {
+                result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+                result.setStatusMessage("Location not found");
+                result.setData(null);
+            }
 
             result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
-            result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-            result.setStatusMessage("Success");      
-    
             return result;
     }
 
@@ -221,7 +337,7 @@ public class OcpiController {
     }
 
     @GetMapping("/tariffs")
-    @Operation(summary = "4-1. tariffs - get tariffs", description = "{date_from}에서 {date_to} 사이에 마지막으로 업데이트된 CDR을 가져온다")
+    @Operation(summary = "4-1. tariffs - get tariffs", description = "{date_from}에서 {date_to} 사이에 마지막으로 업데이트된 tariff 개체들을 가져온다.")
     @Parameters({
         @Parameter(name = "date_from", description = "날짜/시간(포함) 이후 last_updated 있는 개체만 반환", example = "2024-06-01T06:12:31.401Z"),
         @Parameter(name = "date_to", description = "이 날짜/시간(제외) 까지 last_updated 있는 개체만 반환", example = "2024-06-04T06:12:31.401Z"),
@@ -236,9 +352,74 @@ public class OcpiController {
 
         ApiResponseObjectList<Tariff> result = new ApiResponseObjectList<>();
 
+        // Parse the date_from and date_to strings
+        ZonedDateTime fromDate;
+        ZonedDateTime toDate;
+        try {
+            fromDate = ZonedDateTime.parse(date_from);
+            toDate = ZonedDateTime.parse(date_to);
+        } catch (DateTimeParseException e) {
+            result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+            result.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+            result.setStatusMessage("Invalid date format");
+            return result;
+        }
+
+        // Get the dummy data
+        List<Tariff> tariffs = dummyDataService.makeTariffs();
+
+        // Filter the tariffs by last_updated date
+        List<Tariff> filteredTariffs = tariffs.stream()
+                .filter(tariff -> {
+                    ZonedDateTime lastUpdated = ZonedDateTime.parse(tariff.getLast_updated());
+                    return (lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate)) && lastUpdated.isBefore(toDate);
+                })
+                .collect(Collectors.toList());
+
+        // If limit is 0, set limit to the size of the filtered list to return all objects
+        if (limit == 0) {
+            limit = filteredTariffs.size();
+        }
+
+        // Apply offset and limit for pagination
+        int start = Math.min(offset, filteredTariffs.size());
+        int end = Math.min(offset + limit, filteredTariffs.size());
+        List<Tariff> paginatedTariffs = filteredTariffs.subList(start, end);
+
         result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
         result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-        result.setStatusMessage("Success");        
+        result.setStatusMessage("Success");
+        result.setData(paginatedTariffs);
+
+        return result;
+    }
+
+    @GetMapping("/tariffs/{tariff_id}")
+    @Operation(summary = "4-2. tariffs - get tariff", description = "tariff_id로 특정되는 하나의 tariff를 가져온다.")
+    public ApiResponseObject<Tariff> getTariff(
+        @PathVariable @Parameter(description = "unique tariff id from emsp", example = "ABC10334908") String tariff_id) {
+
+        ApiResponseObject<Tariff> result = new ApiResponseObject<>();
+
+        // Get the dummy data
+        List<Tariff> tariffs = dummyDataService.makeTariffs();
+
+        // Find the tariff by ID
+        Optional<Tariff> tariffOpt = tariffs.stream()
+                .filter(tariff -> tariff.getId().equals(tariff_id))
+                .findFirst();
+
+        result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+        
+        if (tariffOpt.isPresent()) {
+            result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+            result.setStatusMessage("Success");
+            result.setData(tariffOpt.get());
+        } else {
+            result.setStatusCode(OcpiResponseStatusCode.INSUFFICIENT_INFORMATION);
+            result.setStatusMessage("Tariff not found");
+            result.setData(null);
+        }
 
         return result;
     }

@@ -64,6 +64,9 @@ public class AuthSubject {
     @Column(name = "GROUP_ID", columnDefinition = "CHAR(6)")
     private String groupId; 
 
+    @Column(name = "TOKEN_GEN_PERMISSION", columnDefinition = "INT")
+    private int tokenGenPermission; 
+
     @Transient
     private List<PermissionBase> permissionList;
 

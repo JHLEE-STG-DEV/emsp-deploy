@@ -8,6 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
@@ -26,7 +28,6 @@ import com.chargev.emsp.model.dto.pnc.KpipReqBodyPushWhitelistItem;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyRevokeCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyVerifyContractCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyVerifyOcsp;
-import com.chargev.emsp.model.dto.pnc.KpipResBodyPushWhitelistItem;
 import com.chargev.emsp.service.ServiceResult;
 import com.chargev.emsp.service.log.CheckpointKind;
 import com.chargev.emsp.service.log.CheckpointReference;
@@ -34,7 +35,6 @@ import com.chargev.emsp.service.log.KpipLogService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import reactor.core.publisher.Mono;
-import com.fasterxml.jackson.core.type.TypeReference;
 
 @Service
 public class KpipApiService {
@@ -42,6 +42,7 @@ public class KpipApiService {
     private final ObjectMapper objectMapper;
     private final WebClient webClient;
     private final KpipLogService kpipLogService;
+    private static final Logger apiLogger = LoggerFactory.getLogger("API_LOGGER");
 
     // base url, spid, spkey (custom.properties에서 설정한 값을 불러온다.)
     @Value("${kpip.base.url}")
@@ -85,9 +86,19 @@ public class KpipApiService {
 
     // 1-1. EVSE/CSMS Issue Certificate
     public ServiceResult<Map<String, Object>> issueCert(KpipReqBodyIssueCert request, String trackId) {
+        
         ServiceResult<Map<String, Object>> serviceResult = new ServiceResult<>();
 
         String url = "/cert/issuance";
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
+
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -109,10 +120,22 @@ public class KpipApiService {
                 kpipLogService.kpipLogFinish(kpipLogId, "200", response);
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
                 serviceResult.succeed(response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -121,11 +144,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
         return serviceResult;
     }
@@ -135,6 +164,14 @@ public class KpipApiService {
         ServiceResult<Map<String, Object>> serviceResult = new ServiceResult<>();
 
         String url = "/cert/revocation";
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
 
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
@@ -157,10 +194,23 @@ public class KpipApiService {
                 kpipLogService.kpipLogFinish(kpipLogId, "200", response);
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
                 serviceResult.succeed(response);
+                if (apiLogger.isInfoEnabled()) {
+                    
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -169,11 +219,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
         return serviceResult;
 
@@ -186,6 +242,14 @@ public class KpipApiService {
         String url = "/cert/ocsp-verification";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -232,11 +296,25 @@ public class KpipApiService {
                         // 기타 경우.
                         break;
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
 
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -245,11 +323,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;
@@ -262,6 +346,14 @@ public class KpipApiService {
         String url = "/cert/download-crl";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -295,10 +387,23 @@ public class KpipApiService {
                     serviceResult.fail(500, resultMsg);
                     checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -307,11 +412,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;
@@ -327,6 +438,14 @@ public class KpipApiService {
         String url = "/cert/ocsp-response-msg";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -376,11 +495,24 @@ public class KpipApiService {
                         // 기타 경우.
                         break;
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
 
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -389,11 +521,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;
@@ -406,6 +544,14 @@ public class KpipApiService {
 
         String url = "/contract/issue";
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -427,10 +573,22 @@ public class KpipApiService {
                 kpipLogService.kpipLogFinish(kpipLogId, "200", response);
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
                 serviceResult.succeed(response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -439,11 +597,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
         return serviceResult;
     }
@@ -455,6 +619,14 @@ public class KpipApiService {
         String url = "/contract/revocation";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -486,10 +658,23 @@ public class KpipApiService {
                     serviceResult.fail(500, resultMsg);
                     checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -498,11 +683,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;
@@ -516,6 +707,14 @@ public class KpipApiService {
         String url = "/pnc-auth/contract-cert-verification";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -535,8 +734,12 @@ public class KpipApiService {
 
                 String resultCode = (String) response.get("resultCode");
                 String resultMsg = (String) response.get("resultMsg");
-                String status = (String) response.get("status");
+                String status = (String) response.get("ocspStatus");
 
+                serviceResult.succeed(response);
+                checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
+                /*
+                 일단 결과자체는 ok이고, 내부검증은 밖에서한다.
                 if (resultCode.equals("OK")) {
                     // KEPCO쪽 계약인증서 검증 성공
                     // 이후 로직 처리
@@ -548,7 +751,7 @@ public class KpipApiService {
                     serviceResult.fail(500, resultMsg);
                     checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 }
-
+ */
                 switch (status) {
                     case "Good":
                         // 검증 성공
@@ -563,10 +766,23 @@ public class KpipApiService {
                         // 기타 경우.
                         break;
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
             }
         } catch (WebClientResponseException e) {
             // 4xx 및 5xx 오류를 여기서 처리
@@ -575,11 +791,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
         } catch (Exception e) {
             // 기타 예외 처리
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
         return serviceResult;
     }
@@ -592,6 +814,14 @@ public class KpipApiService {
         String url = "/pnc-auth/white-list";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -623,6 +853,7 @@ public class KpipApiService {
                     // 이후 로직 처리
                     serviceResult.succeed(response);
                     checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
+                    //return serviceResult;
                 } else if (resultCode.equals("OK")) {
                     // List 중 일부만 처리 성공
                     // emadList 내부의 각각의 resultMsg 확인 필요
@@ -643,10 +874,23 @@ public class KpipApiService {
                 //     // 처리 결과가 담긴 List
                 //     System.out.println("emaidList: " + emaidList);
                 // }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
 
             }
         } catch (WebClientResponseException e) {
@@ -656,11 +900,17 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
 
         } catch (Exception e) {
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
 
         }
 
@@ -673,6 +923,14 @@ public class KpipApiService {
         String url = "/pnc-auth/download-crl-mo";
         HttpHeaders headers = createHeaders();
 
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -704,11 +962,24 @@ public class KpipApiService {
                     serviceResult.fail(500, resultMsg);
                     checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 }
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {  
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
 
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
 
             }
         } catch (WebClientResponseException e) {
@@ -718,12 +989,18 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
 
         } catch (Exception e) {
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
 
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;
@@ -735,6 +1012,15 @@ public class KpipApiService {
         String url = "/pnc-auth/authorize-account";
         HttpHeaders headers = createHeaders();
 
+     
+        String bodyJson = null;  try {
+            bodyJson = objectMapper.writeValueAsString(request);
+        } catch (Exception ex) {
+            apiLogger.error("Kpip Body 직렬화 실패.");
+        }
+        if (apiLogger.isInfoEnabled()) {  
+            apiLogger.info("TAG: KPIP_START, Request URL: {}, Track ID: {}, Body: {}", url, trackId, bodyJson);
+        }
         String kpipLogId = kpipLogService.kpipLogStart(url, request, trackId);
         CheckpointReference checkpoint = new CheckpointReference(kpipLogId);
         serviceResult.getCheckpoints().add(checkpoint);
@@ -753,11 +1039,24 @@ public class KpipApiService {
             if (response != null) {
                 serviceResult.succeed(response);
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_SUCCESS);
+                kpipLogService.kpipLogFinish(kpipLogId, "200", response);
+                if (apiLogger.isInfoEnabled()) {
+                    String responseJson = null;  
+                    try {
+                        responseJson = objectMapper.writeValueAsString(response);
+                    } catch (Exception ex) {
+                        apiLogger.error("Kpip Body 직렬화 실패.");
+                    }
+                    apiLogger.info("TAG: KPIP_END, Request URL: {}, Track ID: {}, Body: {}", url, trackId, responseJson);
+                }
 
             } else {
                 kpipLogService.kpipLogFail(kpipLogId, String.valueOf(400), "No Response");
                 checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
                 serviceResult.fail(400, "No Response"); // 실제로 받은 에러코드와 body, 혹은 적당한 에러메세지를 받아야 함.
+                if (apiLogger.isWarnEnabled()) {
+                    apiLogger.warn("TAG: KPIP_END, Request URL: {}, Track ID: {}, MESSAGE: {}", url, trackId, "No Response");
+                }
 
             }
         } catch (WebClientResponseException e) {
@@ -767,12 +1066,18 @@ public class KpipApiService {
             serviceResult.fail(statusCode, responseBody);
             kpipLogService.kpipLogFail(kpipLogId, String.valueOf(statusCode), responseBody);
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, statusCode);
+            }
 
         } catch (Exception e) {
             serviceResult.fail(500, "Unknwon Error");
             kpipLogService.kpipLogFail(kpipLogId, "500", "Unknwon Error");
             checkpoint.setCheckpointKind(CheckpointKind.KPIP_SEND_FAIL);
 
+            if (apiLogger.isErrorEnabled()) {
+                apiLogger.error("TAG: KPIP_END, Request URL: {}, Track ID: {}, STATUS: {}", url, trackId, "UNKHOWN");
+            }
         }
 
         return serviceResult;

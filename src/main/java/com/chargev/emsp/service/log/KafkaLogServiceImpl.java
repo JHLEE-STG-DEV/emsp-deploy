@@ -41,7 +41,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
         // logs 디렉토리가 존재하지 않으면 생성
         Path logDirectoryPath;
         try {
-            Path logRootDir = Paths.get("/var/log");
+            Path logRootDir = Paths.get("/var/log/chargeV");
             //Path jarDir = Paths.get(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
             logDirectoryPath = logRootDir.resolve("kafka");
             LocalFileManager.ensureDirectory(logDirectoryPath);

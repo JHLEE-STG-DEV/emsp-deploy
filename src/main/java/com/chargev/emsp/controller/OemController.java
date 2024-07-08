@@ -115,7 +115,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/accounts/{emsp_account_key}/contract")
+    @GetMapping("/accounts/{emsp_account_key}/contracts")
     @Operation(summary = "2-1. 계약 목록 조회", description = "특정 회원의 계약 목록을 조회한다.")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
     public ApiResponseObjectList<EmspContract> getContracts(@PathVariable("emsp_account_key") String emspAccountKey) {
@@ -214,7 +214,7 @@ public class OemController {
         return response;
     }
 
-    @PostMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued")
+    @PostMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/orders")
     @Operation(summary = "3-2. RFID 발급 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성한다")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -233,7 +233,7 @@ public class OemController {
         return response;
     }
 
-    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued/{issued_id}")
+    @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/order/{issued_id}")
     @Operation(summary = "3-3. RFID 발급 요청 조회", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성 요청된 내용을 조회한다.")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
@@ -252,8 +252,8 @@ public class OemController {
         return response;
     }
 
-    @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued/{issued_id}")
-    @Operation(summary = "3-4. RFID 발급 수정 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성 요청된 내용을 수정한다.")
+    @PostMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids")
+    @Operation(summary = "3-4. RFID 등록 요청", description = "RFID 등록 요청 : Registration 시 RFID 등록 / RFID issued 로 RFID 등록 (확정 전)")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
@@ -264,12 +264,31 @@ public class OemController {
         @PathVariable("emsp_contract_id") String emspContractId,
         @PathVariable("issued_id") String issuedId,
         @RequestBody EmspRfidCardRequest request) {
-        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 건 내에 특정 issued id로 생성 요청된 RFID 정보를 수정한다.
+        // api 확정 전
 
         ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
 
         return response;
     }
+
+    // @PatchMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/issued/{issued_id}")
+    // @Operation(summary = "3-4. RFID 발급 수정 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성 요청된 내용을 수정한다.")
+    // @Parameters({
+    //     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
+    //     @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
+    //     @Parameter(name = "issued_id", description = "RFID Issued Id", example = "123456789"),
+    // })
+    // public ApiResponseObject<EmspRfidCard> patchRfidIssued(
+    //     @PathVariable("emsp_account_key") String emspAccountKey,
+    //     @PathVariable("emsp_contract_id") String emspContractId,
+    //     @PathVariable("issued_id") String issuedId,
+    //     @RequestBody EmspRfidCardRequest request) {
+    //     // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 건 내에 특정 issued id로 생성 요청된 RFID 정보를 수정한다.
+
+    //     ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+
+    //     return response;
+    // }
 
     @GetMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/{card_id}")
     @Operation(summary = "3-3. RFID 조회", description = "특정 회원의 특정 계약에 속한 특정 RFID 카드 단건을 조회한다.")

@@ -31,6 +31,10 @@ public class EVSE {
     private List<ParkingRestriction> parking_restrictions;
     @Schema(description = "사진 또는 로고 등 EVSE와 관련된 이미지 링크 목록입니다.")
     private List<Image> images;
+    @Schema(description = "지불방법에 대한 String List입니다. (* OCPI 표준 아님)")
+    private List<String> payment_methods;
+    @Schema(description = "Access에 대한 String Enum입니다. (* OCPI 표준 아님)")
+    private Access access;
     @Schema(description = "$date-time")
     private String last_updated;
 }

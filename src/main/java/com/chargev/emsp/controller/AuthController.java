@@ -140,6 +140,26 @@ public class AuthController {
         authSubject.setSubjectType("OEM");
         authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
         authSubject.setSubjectDesc("Mercedes-Benz OEM Server User");
+        authSubject.setTokenGenPermission(1); // 1:시간 자유, 기타는 범위 관련 처리함 
+        authService.saveAuthSubject(authSubject);
+
+        authSubject = new AuthSubject();
+        authSubject.setSubjectId("102ab2f035d54d9c9760cbac5afce4aa");
+        authSubject.setSubjectName("CPO Test");
+        authSubject.setSubjectEmail("test@test.com");
+        authSubject.setSubjectPhone("010-1234-5678");
+        authSubject.setSubjectPassword(shaService.sha256Hash("81dbde083e46426b94453aa8d8803e5e", SALT_STRING));
+        authSubject.setCreatedDate(new Date());
+        authSubject.setUpdatedDate(new Date());
+        authSubject.setCreatedUser("00000000000000000000000000000000");
+        authSubject.setUpdatedUser("00000000000000000000000000000000");
+        authSubject.setDeleted(0);
+        authSubject.setGroupId("CPO001");
+        authSubject.setSubjectType("CPO");
+        authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
+        authSubject.setSubjectDesc("CPO");
+        authSubject.setTokenGenPermission(1); // 1:시간 자유, 기타는 범위 관련 처리함 
+        authService.saveAuthSubject(authSubject);
 
         authSubject = new AuthSubject();
         authSubject.setSubjectId("bc25f58dcb1a40db86fabda7d2f9c06b");
@@ -156,6 +176,8 @@ public class AuthController {
         authSubject.setSubjectType("PNC");
         authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
         authSubject.setSubjectDesc("GSChargeV PNC Server User");
+        authSubject.setTokenGenPermission(1); // 1:시간 자유, 기타는 범위 관련 처리함 
+        authService.saveAuthSubject(authSubject);
 
         authSubject = new AuthSubject();
         authSubject.setSubjectId("a1dca34e1f3b478884fafdffbf66ef48");
@@ -172,6 +194,7 @@ public class AuthController {
         authSubject.setSubjectType("OCP");
         authSubject.setSubjectStatus(1); // 1: Active, 2: Inactive, 3: Locked
         authSubject.setSubjectDesc("GSChargeV OCPI Server User");
+        authSubject.setTokenGenPermission(1); // 1:시간 자유, 기타는 범위 관련 처리함 
 
         PermissionBase permissionBase = new PermissionBase();
         permissionBase.setPermissionId("4c4ab7f112bc4da0a69ffa5759c5a862");
@@ -183,6 +206,7 @@ public class AuthController {
         permissionBase.setCreatedUser("00000000000000000000000000000000");
         permissionBase.setUpdatedUser("00000000000000000000000000000000");
         permissionBase.setDeleted(0);
+        
 
         authService.savePermissionBase(permissionBase);
 
@@ -386,14 +410,14 @@ public class AuthController {
         ApiResponseString response = new ApiResponseString();
         response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
-        // if(!version.equals("V001")) {
-        //     response.setStatusCode(OcpiResponseStatusCode.UNSUPPORTED_VERSION);
-        //     response.setStatusMessage(OcpiResponseStatusCode.UNSUPPORTED_VERSION.toString());
-        //     return response;
-        // }
-
         // 어떤 영역에서 사용할 것인지 프라이빗 키를 불러온다. 
         if(entity == null) {
+            response.setStatusCode(OcpiResponseStatusCode.INVALID_PARAMETER);
+            response.setStatusMessage(OcpiResponseStatusCode.INVALID_PARAMETER.toString());
+            return response;
+        }
+
+        if(entity.getGrantType() == null) {
             response.setStatusCode(OcpiResponseStatusCode.INVALID_PARAMETER);
             response.setStatusMessage(OcpiResponseStatusCode.INVALID_PARAMETER.toString());
             return response;
@@ -421,6 +445,9 @@ public class AuthController {
             asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
         }
         else if(authSubject.getSubjectType().equals("OCP")) {
+            asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
+        }        
+        else if(authSubject.getSubjectType().equals("CPO")) {
             asymKeys = keyService.getKeys(CLIENT_ID_FOR_OEM, CLIENT_SECRET_FOR_OEM, "EC");
         }        
         else {
@@ -483,9 +510,18 @@ public class AuthController {
 
         Long expirationTime = 3600000L * 24; // 24 Hr
 
-        if(authSubject.getSubjectType().equals("PNC")) {
+        if(authSubject.getSubjectType().equals("PNC") || authSubject.getSubjectType().equals("CPO")) {
             expirationTime = -1L; // 1 Hr
         }
+
+        if((authSubject.getTokenGenPermission() & 1) != 0 && entity.getExpiration() != null) {
+            try {
+                expirationTime = Long.parseLong(entity.getExpiration());
+            }
+            catch (Exception ex) {
+            }
+        }
+        
    
         String jwtToken = jwtTokenService.generateToken(authSubject.getSubjectId(), claims, expirationTime, asymKeys.getPrivateKey());
         if(jwtToken == null) {

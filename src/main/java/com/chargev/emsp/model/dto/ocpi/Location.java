@@ -35,6 +35,8 @@ public class Location {
     private List<AdditionalGeoLocation> related_locations;
     @Schema(description = "충전소 위치의 일반적인 주차 유형 입니다. (String enum)")
     private ParkingType parking_type;
+    @Schema(description = "Hotline (* OCPI 표준 아님)")
+    private Hotline hotline;
     @Schema(description = "충전소 내에 EVSE 목록입니다.")
     private List<EVSE> evses;
     @Schema(description = "위치에 도달하는 방법에 대한 사람이 읽을 수 있는 지침입니다.")
@@ -57,6 +59,8 @@ public class Location {
     private List<Image> images;
     @Schema(description = "이 위치에서 공급되는 에너지에 대한 세부 정보입니다.")
     private EnergyMix energy_mix;
+    @Schema(description = "ConnectorTypeCount (* OCPI 표준 아님)")
+    private List<ConnectorTypeCount> connector_type_counts;
     @Schema(required = true, description = "$date-time")
     private String last_updated;
 }

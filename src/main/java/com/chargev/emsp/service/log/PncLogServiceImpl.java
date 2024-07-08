@@ -37,13 +37,15 @@ public class PncLogServiceImpl implements PncLogService {
     private Path tmpLogPath;
     private Path objectLogPath;
 
+    private static final Logger apiLogger = LoggerFactory.getLogger("API_LOGGER");
+
     @PostConstruct
     public void init() {
         // JAR 파일 기준으로 logs 디렉토리 설정
         // logs 디렉토리가 존재하지 않으면 생성
         Path logDirectoryPath;
         try {
-            Path logRootDir = Paths.get("/var/log");
+            Path logRootDir = Paths.get("/var/log/chargeV");
             //Path jarDir = Paths.get(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
             logDirectoryPath = logRootDir.resolve("kafka");
             LocalFileManager.ensureDirectory(logDirectoryPath);
@@ -52,6 +54,7 @@ public class PncLogServiceImpl implements PncLogService {
             objectLogActive = false;
             logger.error(e.getMessage());
             e.printStackTrace();
+            apiLogger.error("Pnc Log 설정 실패 : Body 내용을 백업할 디렉토리가 확보되지 않았습니다.");
             return;
         }
         try {
@@ -62,6 +65,7 @@ public class PncLogServiceImpl implements PncLogService {
             backupLogActive = false;
             logger.error("Pnc 로그 백업플랜이 설정되지 않음.");
             logger.error(e.getMessage());
+            apiLogger.error("Pnc Log 설정 실패 : Body 내용을 백업할 디렉토리가 확보되지 않았습니다.");
             e.printStackTrace();
         }
         try {
@@ -71,6 +75,7 @@ public class PncLogServiceImpl implements PncLogService {
             objectLogActive = false;
             logger.error("Pnc 객체 저장플랜이 설정되지 않음.");
             logger.error(e.getMessage());
+            apiLogger.error("Pnc Log 설정 실패 : Body 내용을 저장할 디렉토리가 확보되지 않았습니다.");
             e.printStackTrace();
         }
     }

@@ -5,7 +5,7 @@ import lombok.Data;
 
 @Data
 public class PncReqBodyContractInfo {
-    @Schema(required=true, description = "차량 VIN 번호", example = "KMKPNC123456789AB0")
+    @Schema(required=true, description = "PCID", example = "KMKPNC123456789AB0")
     private String pcid;
     @Schema(required=true, description = "OEM ID", example = "BMW")
     private String oemId;

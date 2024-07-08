@@ -6,7 +6,7 @@ import lombok.Data;
 @Data
 public class PncReqBodyIssueContract {
 
-    @Schema(description = "차량 VIN 번호", example = "KMKPNC123456789AB0")
+    @Schema(description = "PCID", example = "KMKPNC123456789AB0")
     private String pcid;
     @Schema(description = "OEM ID", example = "BMW")
     private String oemId;
@@ -16,4 +16,6 @@ public class PncReqBodyIssueContract {
     private String memberGroupId;
     @Schema(description = "멤버 그룹 seq", example = "012345")
     private Long memberGroupSeq;
+    @Schema(description = "Issue Type (NEW / UPDATE)", example="NEW")
+    private String issueType;
 }

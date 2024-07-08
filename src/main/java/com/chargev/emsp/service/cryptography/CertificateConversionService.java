@@ -1,9 +1,11 @@
 package com.chargev.emsp.service.cryptography;
 
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.Security;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
 import java.util.Date;
 
@@ -26,6 +28,7 @@ import com.chargev.emsp.model.dto.pnc.CertificateInfo;
 
 @Service
 public class CertificateConversionService {
+
 
     // @PostConstruct
     // public void init() {
@@ -106,6 +109,7 @@ public class CertificateConversionService {
 
         return certificate;
     }
+
 
     private String convertToPEMFromDER(byte[] derCert) {
         String base64Cert = Base64.toBase64String(derCert);
@@ -242,6 +246,38 @@ public class CertificateConversionService {
     // 시리얼 넘버를 16진수 형식으로 반환하는 메서드
     private String getFormattedSerialNumber(java.math.BigInteger serialNumber) {
         return "0x" + serialNumber.toString(16).toUpperCase();
+    }
+
+    // CRL 디코딩
+    public void decodeCRL(String base64CRL) {
+        try {
+            // Base64 디코딩 (KEPCO에서 두 번 인코딩하여 보내므로 두 번 디코딩한다)
+            byte[] decodedCRL1 = java.util.Base64.getDecoder().decode(base64CRL);
+            byte[] decodedCRL = java.util.Base64.getDecoder().decode(decodedCRL1);
+
+            // PEM 데이터를 ByteArrayInputStream으로 변환
+            ByteArrayInputStream bais = new ByteArrayInputStream(decodedCRL);
+
+            // CRL 객체로 변환
+            CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
+            bais.reset();
+            X509CRL crl = (X509CRL) certFactory.generateCRL(bais);
+            // CRL 정보 출력
+            System.out.println("Issuer: " + crl.getIssuerX500Principal());
+            System.out.println("This Update: " + crl.getThisUpdate());
+            System.out.println("Next Update: " + crl.getNextUpdate());
+            System.out.println("Revoked Certificates: " + crl.getRevokedCertificates());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public String decodeBase64(String base64Something){
+        
+        byte[] decodedBytes = java.util.Base64.getMimeDecoder().decode(base64Something);
+
+        // Convert byte array to String using the appropriate Charset
+        return new String(decodedBytes, StandardCharsets.UTF_8);
     }
 
 }

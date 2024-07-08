@@ -21,4 +21,5 @@ public class TokenRequest {
     @JsonProperty("redirect_uri")
     private String redirectUri;
     private String state;
+    private String expiration;
 }

@@ -31,4 +31,8 @@ public class PncContract {
     @Schema(description = "요청일시 (ISO8601)")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private String requestDate;
+    @Schema(description="처리 결과 (SUCCESS / FAIL)", example="FAIL")
+    private String result;
+    @Schema(description="메시지 (실패인 경우 실패 메시지를 전달)")
+    private String message;
 }

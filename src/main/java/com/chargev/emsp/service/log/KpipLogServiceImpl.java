@@ -41,7 +41,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         Path logDirectoryPath;
         try {
             
-            Path logRootDir = Paths.get("/var/log");
+            Path logRootDir = Paths.get("/var/log/chargeV");
             //Path jarDir = Paths.get(getClass().getProtectionDomain().getCodeSource().getLocation().toURI()).getParent();
             logDirectoryPath = logRootDir.resolve("kpip");
             LocalFileManager.ensureDirectory(logDirectoryPath);
