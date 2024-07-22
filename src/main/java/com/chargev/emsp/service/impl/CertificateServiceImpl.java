@@ -411,7 +411,7 @@ public class CertificateServiceImpl implements CertificateService {
             // 1. 요청바디의 값 확인
             // 1-1. pcid (vin 차대번호)
             String pcid = request.getPcid();
-            // 1-2. oemId ("BMW")
+            // 1-2. oemId ("KMK")
             String oemId = request.getOemId();
             // 1-3. memberKey
             Long memberKey = request.getMemberKey();
@@ -446,7 +446,7 @@ public class CertificateServiceImpl implements CertificateService {
             req.setPcid(pcid);
             // 계약번호. 위에서 생성한 계약번호 사용
             req.setEmaid(emaId);
-            // oemID는 "BMW"로 고정하면 되지만 어차피 BMW에서 요청시에도 들어오기 때문에 들어온 값을 그대로 전달하기로 함
+            // oemID는 "BMW"로 고정하면 되지만 어차피 요청시에도 들어오기 때문에 들어온 값을 그대로 전달하기로 함
             req.setOemid(oemId);
             // 유효기간인데 기본값인 24로 고정해놓는 것으로 작성함
             req.setExpPolicy("24");

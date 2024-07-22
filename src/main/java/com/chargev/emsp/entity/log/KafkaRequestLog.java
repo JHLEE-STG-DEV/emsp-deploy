@@ -4,14 +4,18 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.chargev.emsp.entity.listeners.KafkaRequestLogListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "kafka_request_logs ")
 @Entity
+@EntityListeners(KafkaRequestLogListener.class)
 @Data
 public class KafkaRequestLog {
     @Id

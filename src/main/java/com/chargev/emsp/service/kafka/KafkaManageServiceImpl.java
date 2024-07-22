@@ -72,7 +72,7 @@ public class KafkaManageServiceImpl implements KafkaManageService {
             String expiredDateString = dateTimeFormatterService.formatToSimpleStyle(zonedExpiredDate);
             kafkaObject.setExpiredDate(expiredDateString);
             // (3) 받은 contCert로부터 발급날짜 추출
-            Date requestDate = certificateConversionService.getExpiredDate(contCert);
+            Date requestDate = certificateConversionService.getIssuedDate(contCert);
             ZonedDateTime zonedRequestdDate = ZonedDateTime.ofInstant(requestDate.toInstant(), ZoneId.of("UTC"));
             String requestDateString = dateTimeFormatterService.formatToSimpleStyle(zonedRequestdDate);
             kafkaObject.setRequestDate(requestDateString);

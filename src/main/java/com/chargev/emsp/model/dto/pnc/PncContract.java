@@ -15,7 +15,7 @@ public class PncContract {
     private String memberGroupId;
     @Schema(description="회원 그룹 SEQ", type="integer", format="int64", example="123456")
     private Long memberGroupSeq;
-    @Schema(description="BENZ, BMW", defaultValue="BMW", example="BMW")
+    @Schema(description="BENZ, BMW", defaultValue="KMK", example="KMK")
     private String oemCode;
     @Schema(description="차대번호")
     private String vin;

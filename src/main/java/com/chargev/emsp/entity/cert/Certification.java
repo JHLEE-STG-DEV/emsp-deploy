@@ -2,14 +2,18 @@ package com.chargev.emsp.entity.cert;
 
 import java.util.Date;
 
+import com.chargev.emsp.entity.listeners.CertificationListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "EV_CERTIFICATION")
 @Entity
+@EntityListeners(CertificationListener.class)
 @Data
 public class Certification {
     @Id
@@ -41,6 +45,8 @@ public class Certification {
     @Column(name = "STATUS", columnDefinition = "INT")
     private int status;
 
+    @Column(name = "STATUS_MESSAGE", columnDefinition = "VARCHAR(1024)")
+    private String statusMessage;
     
     // 요청도 관리한다.
     @Column(name = "REQUEST_DATE", columnDefinition = "DATETIME")

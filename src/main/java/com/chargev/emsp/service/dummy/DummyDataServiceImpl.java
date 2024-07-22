@@ -3,12 +3,22 @@ package com.chargev.emsp.service.dummy;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.bouncycastle.util.StringList;
 import org.springframework.stereotype.Service;
 
 import com.chargev.emsp.model.dto.ocpi.Access;
 import com.chargev.emsp.model.dto.ocpi.AdditionalGeoLocation;
+import com.chargev.emsp.model.dto.ocpi.AuthMethod;
 import com.chargev.emsp.model.dto.ocpi.BusinessDetails;
 import com.chargev.emsp.model.dto.ocpi.Capability;
+import com.chargev.emsp.model.dto.ocpi.Cdr;
+import com.chargev.emsp.model.dto.ocpi.CdrDimension;
+import com.chargev.emsp.model.dto.ocpi.CdrDimensionType;
+import com.chargev.emsp.model.dto.ocpi.CdrForMb;
+import com.chargev.emsp.model.dto.ocpi.CdrLocation;
+import com.chargev.emsp.model.dto.ocpi.CdrLocationForMb;
+import com.chargev.emsp.model.dto.ocpi.CdrToken;
+import com.chargev.emsp.model.dto.ocpi.ChargingPeriod;
 import com.chargev.emsp.model.dto.ocpi.Connector;
 import com.chargev.emsp.model.dto.ocpi.ConnectorFormat;
 import com.chargev.emsp.model.dto.ocpi.ConnectorType;
@@ -31,11 +41,15 @@ import com.chargev.emsp.model.dto.ocpi.Price;
 import com.chargev.emsp.model.dto.ocpi.PriceComponent;
 import com.chargev.emsp.model.dto.ocpi.RegularHours;
 import com.chargev.emsp.model.dto.ocpi.Restrictions;
+import com.chargev.emsp.model.dto.ocpi.Session;
+import com.chargev.emsp.model.dto.ocpi.SessionForMb;
+import com.chargev.emsp.model.dto.ocpi.SessionStatus;
 import com.chargev.emsp.model.dto.ocpi.Status;
 import com.chargev.emsp.model.dto.ocpi.Tariff;
 import com.chargev.emsp.model.dto.ocpi.TariffDimensionType;
 import com.chargev.emsp.model.dto.ocpi.TariffType;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -1179,4 +1193,430 @@ public class DummyDataServiceImpl implements DummyDataService  {
 
         return tariff;
     }
+
+    @Override
+    public SessionForMb makeSession() {
+        SessionForMb session = new SessionForMb();
+
+        session.setCountry_code("KR");
+        session.setParty_id("CEV");
+        session.setId("sid12345");
+        session.setStart_date_time("2024-07-09T05:27:05.931Z");
+        session.setEnd_date_time("2024-07-09T05:27:05.931Z");
+        session.setKwh(0.0);
+        session.setEmsp_contract_id("KRCEV001ABC6");
+        session.setAuth_method(AuthMethod.COMMAND);
+        session.setLocation_id("PI-200013");
+        session.setEvse_uid("PI-200013-2111");
+        session.setConnector_id("1");
+        session.setCurrency("KRW");
+
+        Price total_cost = new Price();
+        total_cost.setExcl_vat(0);
+        total_cost.setIncl_vat(0);
+        session.setTotal_cost(total_cost);
+
+        session.setStatus(SessionStatus.PENDING);
+        session.setLast_updated("2024-07-09T05:27:05.931Z");
+
+        return session;
+    };
+
+    @Override
+    public List<CdrForMb> makeCdrList() {
+        List<CdrForMb> cdrs = new ArrayList<>();
+
+        // 첫 번째 CDR 객체 생성
+        CdrForMb cdr1 = new CdrForMb();
+        cdr1.setCountry_code("KR");
+        cdr1.setParty_id("ALL");
+        cdr1.setId("adfc0c32-2c3e-44b7-a552-ea9fc7d4a71e");
+        cdr1.setStart_date_time("2024-01-01T23:39:09z");
+        cdr1.setEnd_date_time("2024-01-01T23:39:09z");
+
+        CdrToken cdrToken1 = new CdrToken();
+        cdrToken1.setCountry_code("KR");
+        cdrToken1.setParty_id("ALL");
+        cdrToken1.setUid("012345678");
+        cdrToken1.setTokenType("RFID");
+        cdrToken1.setContract_id("KRCEV001ABC6");
+        cdr1.setCdr_token(cdrToken1);
+
+        cdr1.setAuth_method(AuthMethod.WHITELIST);
+        cdr1.setAuthorization_reference("authorization_reference");
+
+        CdrLocationForMb cdrLocation1 = new CdrLocationForMb();
+        cdrLocation1.setId("LOC1");
+        cdrLocation1.setName("Gent Zuid");
+        cdrLocation1.setTime_zone("Europe/Oslo");
+        cdrLocation1.setAddress("F.Rooseveltlaan 3A");
+        cdrLocation1.setCity("Gent");
+        cdrLocation1.setState("state");
+        cdrLocation1.setPostal_code("9000");
+        cdrLocation1.setCountry("BEL");
+
+        GeoLocation geoLocation1 = new GeoLocation();
+        geoLocation1.setLatitude("3.729944");
+        geoLocation1.setLongitude("51.047599");
+        cdrLocation1.setCoordinates(geoLocation1);
+
+        cdrLocation1.setEvse_uid("3256");
+        cdrLocation1.setEvse_id("PI-200013-2111");
+        cdrLocation1.setConnector_id("1");
+        cdrLocation1.setConnector_standard(ConnectorType.IEC_62196_T2);
+        cdrLocation1.setConnector_format(ConnectorFormat.SOCKET);
+        cdrLocation1.setConnector_power_type(PowerType.AC_1_PHASE);
+        cdr1.setCdr_location(cdrLocation1);
+
+        cdr1.setCurrency("KRW");
+
+        List<Tariff> tariffs1 = new ArrayList<>();
+        Tariff tariff1 = new Tariff();
+        tariff1.setCountry_code("KR");
+        tariff1.setParty_id("ALL");
+        tariff1.setId("ABC10334908");
+        List<String> driver_groups = new ArrayList<>();
+        driver_groups.add("102");
+        tariff1.setDriver_groups(driver_groups);
+        tariff1.setCurrency("KRW");
+        tariff1.setType(TariffType.REGULAR);
+
+        List<DisplayText> tariff_alt_text = new ArrayList<>();
+        DisplayText tat1 = new DisplayText();
+        tat1.setLanguage("en");
+        tat1.setText("2.00 euro p/hour including VAT.");
+        tariff_alt_text.add(tat1);
+        DisplayText tat2 = new DisplayText();
+        tat2.setLanguage("nl");
+        tat2.setText("2.00 euro p/uur inclusief BTW.");
+        tariff_alt_text.add(tat2);
+        tariff1.setTariff_alt_text(tariff_alt_text);
+
+        tariff1.setTariff_alt_url("https://company.com/tariffs/13");
+
+        Price min_price = new Price();
+        min_price.setExcl_vat(20.5);
+        min_price.setIncl_vat(24.6);
+
+        Price max_price = new Price();
+        max_price.setExcl_vat(100);
+        max_price.setIncl_vat(110);
+
+        List<Element> elements1 = new ArrayList<>();
+        Element element1 = new Element();
+
+        List<PriceComponent> priceComponents1 = new ArrayList<>();
+        PriceComponent priceComponent1 = new PriceComponent();
+        priceComponent1.setType(TariffDimensionType.ENERGY);
+        priceComponent1.setPrice(2.00);
+        priceComponent1.setVat(10.0);
+        priceComponent1.setStep_size(300);
+        priceComponents1.add(priceComponent1);
+        element1.setPrice_components(priceComponents1);
+        elements1.add(element1);
+        tariff1.setElements(elements1);
+        tariff1.setLast_updated("2015-02-02T14:15:01Z");
+        tariff1.setStart_date_time("2024-01-01T23:39:09z");
+        tariff1.setEnd_date_time("2024-01-01T23:39:09z");
+
+        EnergyMix energyMix = new EnergyMix();
+        energyMix.set_green_energy(false);
+
+        tariffs1.add(tariff1);
+        cdr1.setTariffs(tariffs1);
+
+
+        List<ChargingPeriod> chargingPeriods1 = new ArrayList<>();
+        ChargingPeriod chargingPeriod1 = new ChargingPeriod();
+        chargingPeriod1.setStart_date_time("2015-06-29T21:39:09Z");
+
+        List<CdrDimension> dimensions1 = new ArrayList<>();
+        CdrDimension dimension1 = new CdrDimension();
+        dimension1.setType(CdrDimensionType.TIME);
+        dimension1.setVolume(1.973);
+        dimensions1.add(dimension1);
+        chargingPeriod1.setDimensions(dimensions1);
+        chargingPeriod1.setTariff_id("12");
+        chargingPeriods1.add(chargingPeriod1);
+        cdr1.setCharging_periods(chargingPeriods1);
+
+        Price totalCost1 = new Price();
+        totalCost1.setExcl_vat(4.00);
+        totalCost1.setIncl_vat(4.40);
+        cdr1.setTotal_cost(totalCost1);
+
+        cdr1.setTotal_energy(15.342);
+        cdr1.setTotal_time(1.973);
+
+        Price totalTimeCost1 = new Price();
+        totalTimeCost1.setExcl_vat(4.00);
+        totalTimeCost1.setIncl_vat(4.40);
+        cdr1.setTotal_time_cost(totalTimeCost1);
+
+        cdr1.setLast_updated("2015-06-29T22:01:13Z");
+
+        cdrs.add(cdr1);
+
+        // 두 번째 CDR 객체 생성 (기존 데이터의 변경된 부분들만 업데이트)
+        CdrForMb cdr2 = new CdrForMb();
+        cdr2.setCountry_code("KR");
+        cdr2.setParty_id("ALL");
+        cdr2.setId("adfc0c32-2c3e-44b7-a552-ea9fc7d4a72e");
+        cdr2.setStart_date_time("2024-01-02T10:00:00Z");
+        cdr2.setEnd_date_time("2024-01-02T11:00:00Z");
+
+        CdrToken cdrToken2 = new CdrToken();
+        cdrToken2.setCountry_code("KR");
+        cdrToken2.setParty_id("ALL");
+        cdrToken2.setUid("987654321");
+        cdrToken2.setTokenType("RFID");
+        cdrToken2.setContract_id("KRCEV002ABC7");
+        cdr2.setCdr_token(cdrToken2);
+
+        cdr2.setAuth_method(AuthMethod.WHITELIST);
+        cdr2.setAuthorization_reference("authorization_reference_2");
+
+        CdrLocationForMb cdrLocation2 = new CdrLocationForMb();
+        cdrLocation2.setId("LOC2");
+        cdrLocation2.setName("Seoul Center");
+        cdrLocation2.setTime_zone("Asia/Seoul");
+        cdrLocation2.setAddress("Seoul Street 2");
+        cdrLocation2.setCity("Seoul");
+        cdrLocation2.setState("state");
+        cdrLocation2.setPostal_code("1000");
+        cdrLocation2.setCountry("KOR");
+
+        GeoLocation geoLocation2 = new GeoLocation();
+        geoLocation2.setLatitude("126.9780");
+        geoLocation2.setLongitude("37.5665");
+        cdrLocation2.setCoordinates(geoLocation2);
+
+        cdrLocation2.setEvse_uid("4567");
+        cdrLocation2.setEvse_id("PI-200014-2112");
+        cdrLocation2.setConnector_id("2");
+        cdrLocation2.setConnector_standard(ConnectorType.IEC_62196_T2);
+        cdrLocation2.setConnector_format(ConnectorFormat.SOCKET);
+        cdrLocation2.setConnector_power_type(PowerType.AC_1_PHASE);
+        cdr2.setCdr_location(cdrLocation2);
+
+        cdr2.setCurrency("KRW");
+
+        List<Tariff> tariffs2 = new ArrayList<>();
+        Tariff tariff2 = new Tariff();
+        tariff2.setCountry_code("KR");
+        tariff2.setParty_id("ALL");
+        tariff2.setId("ABC10334909");
+        List<String> driver_groups2 = new ArrayList<>();
+        driver_groups2.add("103");
+        tariff2.setDriver_groups(driver_groups2);
+        tariff2.setCurrency("KRW");
+        tariff2.setType(TariffType.REGULAR);
+
+        List<DisplayText> tariff_alt_text2 = new ArrayList<>();
+        DisplayText tat3 = new DisplayText();
+        tat3.setLanguage("en");
+        tat3.setText("3.00 euro p/hour including VAT.");
+        tariff_alt_text2.add(tat3);
+        DisplayText tat4 = new DisplayText();
+        tat4.setLanguage("kr");
+        tat4.setText("3.00 유로 시간당 부가세 포함.");
+        tariff_alt_text2.add(tat4);
+        tariff2.setTariff_alt_text(tariff_alt_text2);
+
+        tariff2.setTariff_alt_url("https://company.com/tariffs/14");
+
+        Price min_price2 = new Price();
+        min_price2.setExcl_vat(25.0);
+        min_price2.setIncl_vat(30.0);
+
+        Price max_price2 = new Price();
+        max_price2.setExcl_vat(150);
+        max_price2.setIncl_vat(165);
+
+        List<Element> elements2 = new ArrayList<>();
+        Element element2 = new Element();
+
+        List<PriceComponent> priceComponents2 = new ArrayList<>();
+        PriceComponent priceComponent2 = new PriceComponent();
+        priceComponent2.setType(TariffDimensionType.ENERGY);
+        priceComponent2.setPrice(3.00);
+        priceComponent2.setVat(10.0);
+        priceComponent2.setStep_size(300);
+        priceComponents2.add(priceComponent2);
+        element2.setPrice_components(priceComponents2);
+        elements2.add(element2);
+        tariff2.setElements(elements2);
+        tariff2.setLast_updated("2016-02-02T14:15:01Z");
+        tariff2.setStart_date_time("2024-01-02T10:00:00Z");
+        tariff2.setEnd_date_time("2024-01-02T11:00:00Z");
+
+        EnergyMix energyMix2 = new EnergyMix();
+        energyMix2.set_green_energy(false);
+
+        tariffs2.add(tariff2);
+        cdr2.setTariffs(tariffs2);
+
+        List<ChargingPeriod> chargingPeriods2 = new ArrayList<>();
+        ChargingPeriod chargingPeriod2 = new ChargingPeriod();
+        chargingPeriod2.setStart_date_time("2015-07-01T10:15:30Z");
+
+        List<CdrDimension> dimensions2 = new ArrayList<>();
+        CdrDimension dimension2 = new CdrDimension();
+        dimension2.setType(CdrDimensionType.TIME);
+        dimension2.setVolume(0.75);
+        dimensions2.add(dimension2);
+        chargingPeriod2.setDimensions(dimensions2);
+        chargingPeriod2.setTariff_id("13");
+        chargingPeriods2.add(chargingPeriod2);
+        cdr2.setCharging_periods(chargingPeriods2);
+
+        Price totalCost2 = new Price();
+        totalCost2.setExcl_vat(1.50);
+        totalCost2.setIncl_vat(1.65);
+        cdr2.setTotal_cost(totalCost2);
+
+        cdr2.setTotal_energy(10.123);
+        cdr2.setTotal_time(0.75);
+
+        Price totalTimeCost2 = new Price();
+        totalTimeCost2.setExcl_vat(1.50);
+        totalTimeCost2.setIncl_vat(1.65);
+        cdr2.setTotal_time_cost(totalTimeCost2);
+
+        cdr2.setLast_updated("2015-07-01T12:00:00Z");
+
+        cdrs.add(cdr2);
+
+        // 세 번째 CDR 객체 생성 (기존 데이터의 변경된 부분들만 업데이트)
+        CdrForMb cdr3 = new CdrForMb();
+        cdr3.setCountry_code("KR");
+        cdr3.setParty_id("ALL");
+        cdr3.setId("adfc0c32-2c3e-44b7-a552-ea9fc7d4a73e");
+        cdr3.setStart_date_time("2024-01-03T12:00:00Z");
+        cdr3.setEnd_date_time("2024-01-03T14:00:00Z");
+
+        CdrToken cdrToken3 = new CdrToken();
+        cdrToken3.setCountry_code("KR");
+        cdrToken3.setParty_id("ALL");
+        cdrToken3.setUid("654321098");
+        cdrToken3.setTokenType("RFID");
+        cdrToken3.setContract_id("KRCEV003ABC8");
+        cdr3.setCdr_token(cdrToken3);
+
+        cdr3.setAuth_method(AuthMethod.WHITELIST);
+        cdr3.setAuthorization_reference("authorization_reference_3");
+
+        CdrLocationForMb cdrLocation3 = new CdrLocationForMb();
+        cdrLocation3.setId("LOC3");
+        cdrLocation3.setName("Busan Port");
+        cdrLocation3.setTime_zone("Asia/Seoul");
+        cdrLocation3.setAddress("Busan Street 3");
+        cdrLocation3.setCity("Busan");
+        cdrLocation3.setState("state");
+        cdrLocation3.setPostal_code("2000");
+        cdrLocation3.setCountry("KOR");
+
+        GeoLocation geoLocation3 = new GeoLocation();
+        geoLocation3.setLatitude("129.0756");
+        geoLocation3.setLongitude("35.1796");
+        cdrLocation3.setCoordinates(geoLocation3);
+
+        cdrLocation3.setEvse_uid("5678");
+        cdrLocation3.setEvse_id("PI-200015-2113");
+        cdrLocation3.setConnector_id("3");
+        cdrLocation3.setConnector_standard(ConnectorType.IEC_62196_T2);
+        cdrLocation3.setConnector_format(ConnectorFormat.SOCKET);
+        cdrLocation3.setConnector_power_type(PowerType.AC_1_PHASE);
+        cdr3.setCdr_location(cdrLocation3);
+
+        cdr3.setCurrency("KRW");
+
+        List<Tariff> tariffs3 = new ArrayList<>();
+        Tariff tariff3 = new Tariff();
+        tariff3.setCountry_code("KR");
+        tariff3.setParty_id("ALL");
+        tariff3.setId("ABC10334910");
+        List<String> driver_groups3 = new ArrayList<>();
+        driver_groups3.add("104");
+        tariff3.setDriver_groups(driver_groups3);
+        tariff3.setCurrency("KRW");
+        tariff3.setType(TariffType.REGULAR);
+
+        List<DisplayText> tariff_alt_text3 = new ArrayList<>();
+        DisplayText tat5 = new DisplayText();
+        tat5.setLanguage("en");
+        tat5.setText("4.00 euro p/hour including VAT.");
+        tariff_alt_text3.add(tat5);
+        DisplayText tat6 = new DisplayText();
+        tat6.setLanguage("kr");
+        tat6.setText("4.00 유로 시간당 부가세 포함.");
+        tariff_alt_text3.add(tat6);
+        tariff3.setTariff_alt_text(tariff_alt_text3);
+
+        tariff3.setTariff_alt_url("https://company.com/tariffs/15");
+
+        Price min_price3 = new Price();
+        min_price3.setExcl_vat(30.0);
+        min_price3.setIncl_vat(33.0);
+
+        Price max_price3 = new Price();
+        max_price3.setExcl_vat(180);
+        max_price3.setIncl_vat(198);
+
+        List<Element> elements3 = new ArrayList<>();
+        Element element3 = new Element();
+
+        List<PriceComponent> priceComponents3 = new ArrayList<>();
+        PriceComponent priceComponent3 = new PriceComponent();
+        priceComponent3.setType(TariffDimensionType.ENERGY);
+        priceComponent3.setPrice(4.00);
+        priceComponent3.setVat(10.0);
+        priceComponent3.setStep_size(300);
+        priceComponents3.add(priceComponent3);
+        element3.setPrice_components(priceComponents3);
+        elements3.add(element3);
+        tariff3.setElements(elements3);
+        tariff3.setLast_updated("2017-02-02T14:15:01Z");
+        tariff3.setStart_date_time("2024-01-03T12:00:00Z");
+        tariff3.setEnd_date_time("2024-01-03T14:00:00Z");
+
+        EnergyMix energyMix3 = new EnergyMix();
+        energyMix3.set_green_energy(false);
+
+        tariffs3.add(tariff3);
+        cdr3.setTariffs(tariffs3);
+
+        List<ChargingPeriod> chargingPeriods3 = new ArrayList<>();
+        ChargingPeriod chargingPeriod3 = new ChargingPeriod();
+        chargingPeriod3.setStart_date_time("2015-08-01T12:00:00Z");
+
+        List<CdrDimension> dimensions3 = new ArrayList<>();
+        CdrDimension dimension3 = new CdrDimension();
+        dimension3.setType(CdrDimensionType.TIME);
+        dimension3.setVolume(2.00);
+        dimensions3.add(dimension3);
+        chargingPeriod3.setDimensions(dimensions3);
+        chargingPeriod3.setTariff_id("14");
+        chargingPeriods3.add(chargingPeriod3);
+        cdr3.setCharging_periods(chargingPeriods3);
+
+        Price totalCost3 = new Price();
+        totalCost3.setExcl_vat(6.00);
+        totalCost3.setIncl_vat(6.60);
+        cdr3.setTotal_cost(totalCost3);
+
+        cdr3.setTotal_energy(20.456);
+        cdr3.setTotal_time(2.00);
+
+        Price totalTimeCost3 = new Price();
+        totalTimeCost3.setExcl_vat(6.00);
+        totalTimeCost3.setIncl_vat(6.60);
+        cdr3.setTotal_time_cost(totalTimeCost3);
+
+        cdr3.setLast_updated("2015-08-01T15:00:00Z");
+
+        cdrs.add(cdr3);
+
+        return cdrs;
+    };
 }

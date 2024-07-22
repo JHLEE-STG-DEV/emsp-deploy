@@ -4,14 +4,18 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.chargev.emsp.entity.listeners.PncRequestLogListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "pnc_request_logs ")
 @Entity
+@EntityListeners(PncRequestLogListener.class)
 @Data
 public class PncRequestLog {
     @Id

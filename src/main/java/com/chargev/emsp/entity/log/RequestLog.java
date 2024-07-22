@@ -4,14 +4,18 @@ import java.util.Date;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.chargev.emsp.entity.listeners.RequestLogListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "LOGS")
 @Entity
+@EntityListeners(RequestLogListener.class)
 @Data
 public class RequestLog {
     @Id

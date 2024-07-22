@@ -17,6 +17,7 @@ import com.chargev.emsp.entity.contract.ContractIdentity;
 import com.chargev.emsp.entity.contract.ContractIdentityUK;
 import com.chargev.emsp.model.dto.pnc.CertificateInfo;
 import com.chargev.emsp.model.dto.pnc.ContractMeta;
+import com.chargev.emsp.model.dto.pnc.ContractStatus;
 import com.chargev.emsp.repository.contract.ContractIdentityRepository;
 import com.chargev.emsp.repository.contract.ContractRepository;
 import com.chargev.emsp.service.ServiceResult;
@@ -54,7 +55,7 @@ public class ContractManageService {
             ContractIdentity tryId = new ContractIdentity();
             tryId.setPcid(pcid);
             tryId.setMemberKey(memberKey);
-            if(!contractIdRepository.existsById(contractIdPair)){
+            if (!contractIdRepository.existsById(contractIdPair)) {
                 contractIdRepository.saveAndFlush(tryId);
             }
         } catch (Exception ex) {
@@ -65,7 +66,7 @@ public class ContractManageService {
         try {
             contractIdentity = contractIdRepository.findById(contractIdPair);
         } catch (Exception ex) {
-ex.printStackTrace();
+            ex.printStackTrace();
         }
         if (contractIdentity.isEmpty()) {
             // 생성 자체에 실패했다.
@@ -105,10 +106,10 @@ ex.printStackTrace();
             try {
                 targetContract = contractRepository.saveAndFlush(targetContract);
                 // 엔티티를 다시 로드 (증가된 EMA_BASE_NUMBER를 바로 읽어오지 못하는 문제가 있어서 수정함)
-                entityManager.refresh(targetContract);
+                // entityManager.refresh(targetContract);
 
             } catch (Exception ex) {
-
+                ex.printStackTrace();
                 if (apiLogger.isErrorEnabled()) {
                     apiLogger.error("TAG: ISSUE_CONTRACT, MESSAGE: {} ,memberKey: {}, pcid: {} Track ID: {}",
                             "CONTRACT 정보 테이블 저장 실패", memberKey, pcid, trackId);
@@ -119,6 +120,7 @@ ex.printStackTrace();
             // 일단 db에 저장을 쳐서 생성중절차를 밟게함.
             contractKey.setContractId(contractId);
             contractKey.setWorking(1);
+            contractKey.setWorked(0);
             try {
                 contractIdRepository.saveAndFlush(contractKey);
             } catch (Exception ex) {
@@ -137,7 +139,7 @@ ex.printStackTrace();
                     .orElseThrow(() -> new RuntimeException("Contract not found"));
 
         } catch (Exception ex) {
-            serviceResult.fail(500, "Failed to Query Contarct");
+            serviceResult.fail(400, "Failed to Query Contarct");
             return serviceResult;
         }
 
@@ -151,7 +153,7 @@ ex.printStackTrace();
                 // 여기는 둘중하나다. 1. 살아있어서 중복처리거나 2. 죽어서 NEW거나
                 if (isContractActive(targetContract)) {
                     // 살아있다. 이건 중복이다.
-                    serviceResult.fail(400, "중복 가입");
+                    serviceResult.fail(409, "중복 가입");
                     return serviceResult;
                 } else {
                     // 죽은놈이다. 이건 없애고, New인것처럼 행동해야한다.
@@ -163,10 +165,11 @@ ex.printStackTrace();
                     try {
                         targetContract = contractRepository.saveAndFlush(targetContract);
                         // 엔티티를 다시 로드 (증가된 EMA_BASE_NUMBER를 바로 읽어오지 못하는 문제가 있어서 수정함)
-                        entityManager.refresh(targetContract);
+                        // entityManager.refresh(targetContract);
 
                     } catch (Exception ex) {
 
+                        ex.printStackTrace();
                         if (apiLogger.isErrorEnabled()) {
                             apiLogger.error("TAG: ISSUE_CONTRACT, MESSAGE: {} ,memberKey: {}, pcid: {} Track ID: {}",
                                     "CONTRACT 정보 테이블 저장 실패", memberKey, pcid, trackId);
@@ -177,9 +180,11 @@ ex.printStackTrace();
                     // 일단 db에 저장을 쳐서 생성중절차를 밟게함.
                     contractKey.setContractId(contractId);
                     contractKey.setWorking(1);
+                    contractKey.setWorked(0);
                     try {
                         contractIdRepository.saveAndFlush(contractKey);
                     } catch (Exception ex) {
+                        ex.printStackTrace();
                         if (apiLogger.isErrorEnabled()) {
                             apiLogger.error("TAG: ISSUE_CONTRACT, MESSAGE: {} ,memberKey: {}, pcid: {} Track ID: {}",
                                     "CONTRACT_IDENTITY 정보 WORKING플래그 작성 실패", memberKey, pcid, trackId);
@@ -193,7 +198,7 @@ ex.printStackTrace();
             if (hasCarFamily(pcid)) {
                 reqType = ContractReqType.ADD;
             }
-        }else if(reqType.equals(ContractReqType.NEW)){
+        } else if (reqType.equals(ContractReqType.NEW)) {
             // Contract 가 없는데 UPDATE로 요청한 것이다.
             serviceResult.fail(404, "업데이트할 인증서 정보가 존재하지 않습니다.");
             return serviceResult;
@@ -206,8 +211,9 @@ ex.printStackTrace();
         return serviceResult;
     }
 
-    public ServiceResult<String> finishIssueContractIdentity(String pcid, Long memberKey, String trackId, boolean success, String message) {
-ServiceResult<String> result = new ServiceResult<>();
+    public ServiceResult<String> finishIssueContractIdentity(String pcid, Long memberKey, String trackId,
+            boolean success, int errorCode, String message) {
+        ServiceResult<String> result = new ServiceResult<>();
         // 우선 사실상id가 존재하면 가져온다.
         ContractIdentityUK contractIdPair = new ContractIdentityUK(pcid, memberKey);
         Optional<ContractIdentity> contractIdentity = Optional.empty();
@@ -217,41 +223,51 @@ ServiceResult<String> result = new ServiceResult<>();
         } catch (Exception ex) {
 
         }
-        if(contractIdentity.isEmpty()){
-            apiLogger.error("TAG:CONTRACT_FINISH_FAIL, MEMBERKEY: {}, PCID: {}, MESSAGE: {}, TRACKID: {}", memberKey, pcid,"UNLOCK할 ContractId조회 불가", trackId);
+        if (contractIdentity.isEmpty()) {
+            apiLogger.error("TAG:CONTRACT_FINISH_FAIL, MEMBERKEY: {}, PCID: {}, MESSAGE: {}, TRACKID: {}", memberKey,
+                    pcid, "UNLOCK할 ContractId조회 불가", trackId);
         }
-        ContractIdentity unlockedIdentity =  contractIdentity.get();
+        ContractIdentity unlockedIdentity = contractIdentity.get();
         unlockedIdentity.setWorked(1);
         unlockedIdentity.setWorking(0);
 
         // Contract자체의 메세지도 여기서 남겨주자.
+
+        // 근데 중복이면 건드리면안되고 그냥 공중분해시킨다.(저쪽도 중복여부는 추적하지않음.)
+        if (errorCode == 409) {
+            result.succeed("OK");
+            return result;
+        }
+
         Optional<Contract> realtedContract = Optional.empty();
-        try{
+        try {
             realtedContract = contractRepository.findById(unlockedIdentity.getContractId());
-        }catch(Exception ex){
+        } catch (Exception ex) {
 
         }
-        if(realtedContract.isPresent()){
-           Contract relatedContractEntity =   realtedContract.get();
-           if(success){
-            relatedContractEntity.setStatus(0);
-            relatedContractEntity.setStatusMessage("OK");
-           }else{
-            relatedContractEntity.setStatus(-1);
-            relatedContractEntity.setStatusMessage(message);
-           }
-           try{
-            contractRepository.save(relatedContractEntity);
-           }catch(Exception ex){
-                apiLogger.error("TAG:CONTRACT_FINISH_FAIL, ContractId: {}, STATUS: {}, STATUS_MESSAGE: {}, MESSAGE: {}, TRACKID: {}", 
-                unlockedIdentity.getContractId(),relatedContractEntity.getStatus(), relatedContractEntity.getStatusMessage(),"성공여부를 저장 실패", trackId);
-           }
+        if (realtedContract.isPresent()) {
+            Contract relatedContractEntity = realtedContract.get();
+            if (success) {
+                relatedContractEntity.setStatus(0);
+                relatedContractEntity.setStatusMessage("OK");
+            } else {
+                relatedContractEntity.setStatus(-1);
+                relatedContractEntity.setStatusMessage(message);
+            }
+            try {
+                contractRepository.save(relatedContractEntity);
+            } catch (Exception ex) {
+                apiLogger.error(
+                        "TAG:CONTRACT_FINISH_FAIL, ContractId: {}, STATUS: {}, STATUS_MESSAGE: {}, MESSAGE: {}, TRACKID: {}",
+                        unlockedIdentity.getContractId(), relatedContractEntity.getStatus(),
+                        relatedContractEntity.getStatusMessage(), "성공여부를 저장 실패", trackId);
+            }
         }
-        try{
+        try {
             contractIdRepository.save(unlockedIdentity);
-        }catch(Exception ex){
+        } catch (Exception ex) {
             apiLogger.error("TAG:CONTRACT_FINISH_FAIL, MEMBERKEY: {}, PCID: {}, MESSAGE: {}, TRACKID: {}",
-             memberKey, pcid,"UNLOCK 플래그 저장 실패", trackId);
+                    memberKey, pcid, "UNLOCK 플래그 저장 실패", trackId);
         }
 
         result.succeed("OK");
@@ -262,7 +278,7 @@ ServiceResult<String> result = new ServiceResult<>();
         try {
             // 자기는 있을것이다. 하나 넘어야 Family
             List<ContractIdentity> targets = contractIdRepository.findAllByPcid(pcid);
-            return targets.size()>1;
+            return targets.size() > 1;
         } catch (Exception ex) {
             // 모르겠다.
             return false;
@@ -314,40 +330,43 @@ ServiceResult<String> result = new ServiceResult<>();
         }
         return result;
     }
+
     @Transactional
-    public ServiceResult<ContractMeta> setIssuedContractInput(String contractId, String emaId, String pcid, String oemId,
-    Long memberKey, String memberGroupId, Long memberGroupSeq) {
-ServiceResult<ContractMeta> result = new ServiceResult<>();
-Optional<Contract> target = Optional.empty();
-try {
-    target = contractRepository.findById(contractId);
-} catch (Exception ex) {
-    result.fail(500, "Failed to query DB");
-    return result;
-}
-if (target.isEmpty()) {
-    result.fail(404, "No Contract Found");
-    return result;
-}
+    public ServiceResult<ContractMeta> setIssuedContractInput(String contractId, String emaId, String pcid,
+            String oemId,
+            Long memberKey, String memberGroupId, Long memberGroupSeq) {
+        ServiceResult<ContractMeta> result = new ServiceResult<>();
+        Optional<Contract> target = Optional.empty();
+        try {
+            target = contractRepository.findById(contractId);
+        } catch (Exception ex) {
+            result.fail(500, "Failed to query DB");
+            return result;
+        }
+        if (target.isEmpty()) {
+            result.fail(404, "No Contract Found");
+            return result;
+        }
 
-// 단순 인풋만부터 저장
-Contract contract = target.get();
-contract.setIssued(1);
-contract.setEmaId(emaId);
-contract.setPcid(pcid);
-contract.setOemId(oemId);
-contract.setMemberKey(memberKey);
-contract.setMemberGroupId(memberGroupId);
-contract.setMemberGroupSeq(memberGroupSeq);
+        // 단순 인풋만부터 저장
+        Contract contract = target.get();
+        contract.setIssued(1);
+        contract.setEmaId(emaId);
+        contract.setPcid(pcid);
+        contract.setOemId(oemId);
+        contract.setMemberKey(memberKey);
+        contract.setMemberGroupId(memberGroupId);
+        contract.setMemberGroupSeq(memberGroupSeq);
 
-try {
-    contract = contractRepository.saveAndFlush(contract);
-    result.succeed(convertToMeta(contract));
-} catch (Exception ex) {
-    result.fail(500, "Failed to update DB");
-}
-return result;
-}
+        try {
+            contract = contractRepository.saveAndFlush(contract);
+            result.succeed(convertToMeta(contract));
+        } catch (Exception ex) {
+            result.fail(500, "Failed to update DB");
+        }
+        return result;
+    }
+
     public ServiceResult<ContractMeta> setIssuedContract(String contractId, String emaId, String pcid, String oemId,
             Long memberKey, String memberGroupId, Long memberGroupSeq, String contCert) {
         ServiceResult<ContractMeta> result = new ServiceResult<>();
@@ -544,21 +563,121 @@ return result;
             result.fail(500, "Failed to update DB");
         }
         // ContractIdentity에서도 지워줌.
-        try{
+        // => 지우지말자. join해서 체크하던가 하고, 두자. (Status에서 체크할 수 있도록)
+        try {
             List<ContractIdentity> relatedIdentities = contractIdRepository.findAllByContractId(contractId);
-            if(relatedIdentities != null){
-                for(ContractIdentity identity : relatedIdentities){
-                    identity.setContractId(null);
+            if (relatedIdentities != null) {
+                for (ContractIdentity identity : relatedIdentities) {
+                    // identity.setContractId(null);
                 }
-
 
                 contractIdRepository.saveAllAndFlush(relatedIdentities);
             }
-        }catch(Exception ex){
+        } catch (Exception ex) {
             // 안되도 처리가 되긴함.
             ex.printStackTrace();
         }
         return result;
+    }
+
+    public ServiceResult<ContractStatus> getContractStatusByContractId(String contractId) {
+        ServiceResult<ContractStatus> result = new ServiceResult<>();
+        ContractStatus status = new ContractStatus();
+        status.setStatus(-1);
+        status.setMessage("Can't check contract by internal error");
+
+        // 일단 EMA자체를 확인
+        Optional<Contract> contract;
+        try {
+            contract = contractRepository.findById(contractId);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            result.fail(500, "Failed to connect DB");
+            return result;
+        }
+
+        // 일단 db에 없음
+        if (contract.isEmpty()) {
+            status.setMessage("존재하지 않는 id입니다.");
+            result.succeed(status);
+            return result;
+
+        }
+        Contract existContract = contract.get();
+
+        Optional<ContractIdentity> contractIdentity = Optional.empty();
+        try {
+            List<ContractIdentity> contractIds = contractIdRepository
+                    .findAllByContractId(existContract.getContractId());
+            if (contractIds != null && !contractIds.isEmpty()) {
+                contractIdentity = Optional.ofNullable(contractIds.get(0));
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        // 일단 working인지 체크.
+        // 마지막에 될수도 있지만, 지금타임에 working이면 100% working이니까
+        // 캐치가 안되는건 덮어씌워진 것이다.
+        if (contractIdentity.isEmpty()) {
+            status.setMessage("신규발급 요청등의 이유로 접근할 수 없는 계약입니다.");
+            result.succeed(status);
+            return result;
+        }
+
+        if (contractIdentity.get().getWorking() > 0 && contractIdentity.get().getWorked() == 0) {
+            // 현재 작업이 진행중임.
+            status.setMessage("현재 발급절차가 진행중입니다.");
+            status.setStatus(-2);
+            result.succeed(status);
+            return result;
+        }
+
+        // 이제 도중이라는 전제없이 태그만으로 체크한다.
+        int issued = existContract.getIssued();
+        if (issued < 1) {
+            status.setMessage("emaId 발급에 실패하였습니다. Log Message : " + existContract.getStatusMessage());
+            result.succeed(status);
+            return result;
+        }
+
+        if (existContract.getStatus() < 0) {
+            status.setStatus(existContract.getStatus());
+            status.setMessage("발급절차 진행 중 문제가 발생하였습니다. LogMessage : " + existContract.getStatusMessage());
+            result.succeed(status);
+            return result;
+        } else if (existContract.getStatus() == 1) {
+            status.setStatus(1);
+            status.setMessage("만료된 인증서입니다.");
+            result.succeed(status);
+            return result;
+        } else if (existContract.getStatus() == 2) {
+            status.setStatus(2);
+            status.setMessage("파기된 인증서입니다.");
+            result.succeed(status);
+            return result;
+        }
+
+        // push white-list 실패 시에도 정상으로 통일해서 응답하는 것으로 수정 24-07-11
+        status.setStatus(0);
+        status.setMessage("OK");
+        status.setContractInfo(convertToMeta(existContract).buildContractInfo());
+        result.succeed(status);
+        return result;
+
+        // 여긴 status가 정상이다.
+        // if(existContract.getWhitelisted() < 1){
+        //     status.setStatus(-1);
+        //     status.setMessage("인증서는 유효할 수 있으나, Whitelist에서 제외되었습니다.");
+        //     result.succeed(status);
+        //     return result;
+        // }else{
+        //     // 이정도면 정상이다.
+        //     status.setStatus(0);
+        //     status.setMessage("OK");
+        //     status.setContractInfo(convertToMeta(existContract).buildContractInfo());
+        //     result.succeed(status);
+        //     return result;
+        // }
     }
 
     public ServiceResult<List<ContractMeta>> findActiveContractsByPcid(String pcid) {
@@ -576,9 +695,10 @@ return result;
             List<ContractMeta> contractMetas = new LinkedList<>();
             for (Contract contract : contracts) {
                 // 살아있는거만 보낸다.
-                if(isContractActive(contract)){
+                if (isContractActive(contract)) {
                     contractMetas.add(convertToMeta(contract));
-                }            }
+                }
+            }
             result.succeed(contractMetas);
         }
         return result;
@@ -587,20 +707,18 @@ return result;
     public ServiceResult<ContractMeta> findContractByMetaData(Long memberKey, String pcid, String oemId) {
         ServiceResult<ContractMeta> result = new ServiceResult<>();
 
-
         // 무조건 Identity에 있는 것을 기준으로 잡는다.
         String contractId = null;
-        try{
+        try {
             ContractIdentityUK idPair = new ContractIdentityUK(pcid, memberKey);
             contractId = contractIdRepository.findById(idPair).get().getContractId();
-        }catch(Exception ex){
+        } catch (Exception ex) {
             // 그냥 없는것으로 치고가도 무방하다.
         }
 
-    if(contractId == null){
-        result.fail(404, "관련 인증서를 찾을 수 없습니다.");
-    }
-
+        if (contractId == null) {
+            result.fail(404, "관련 인증서를 찾을 수 없습니다.");
+        }
 
         Optional<Contract> target = Optional.empty();
         try {

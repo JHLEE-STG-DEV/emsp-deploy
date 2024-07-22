@@ -20,19 +20,23 @@ import com.chargev.emsp.model.dto.pnc.CertificateInfo;
 import com.chargev.emsp.model.dto.pnc.CertificationMeta;
 import com.chargev.emsp.model.dto.pnc.ContractInfo;
 import com.chargev.emsp.model.dto.pnc.ContractMeta;
+import com.chargev.emsp.model.dto.pnc.ContractStatus;
 import com.chargev.emsp.model.dto.pnc.EvseCertificate;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyEmaid;
+import com.chargev.emsp.model.dto.pnc.KpipReqBodyGetOcspMessage;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyIssueCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyIssueContractCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyPushWhitelistItem;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyRevokeCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyVerifyContractCert;
+import com.chargev.emsp.model.dto.pnc.OcspResponse;
 import com.chargev.emsp.model.dto.pnc.PncContract;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyAuthorize;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyContractInfo;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyContractSuspension;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyIssueCert;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyIssueContract;
+import com.chargev.emsp.model.dto.pnc.PncReqBodyOCSPMessage;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyRevokeCert;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyRevokeContractCert;
 import com.chargev.emsp.service.ServiceResult;
@@ -43,7 +47,6 @@ import com.chargev.utils.DateTimeFormatHelper;
 import com.chargev.utils.IdHelper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import jakarta.transaction.Transactional;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -172,7 +175,56 @@ public class PreviewCertificationService {
     // #region CERT-ISSUE
 
     // 저쪽이 폴링할 수 있는 id를 리턴
-    public ServiceResult<String> issueCertificate(PncReqBodyIssueCert request, String trackId) {
+    public ServiceResult<String> issueCertificate(PncReqBodyIssueCert request,
+            String trackId) {
+        ServiceResult<String> serviceResult = new ServiceResult<>();
+        // Issue를 어떻게 진행할지 결정
+        boolean requestNew = "NEW".equalsIgnoreCase(request.getIssueType());
+        // 풀링용 아이디.
+        ServiceResult<CheckCertIssueCondition> checkCondition = certService.checkCertCondition(request.getEcKey(),
+                trackId,requestNew);
+
+        if (checkCondition.isFail()) {
+            serviceResult.fail(checkCondition.getErrorCode(),  checkCondition.getErrorMessage());
+            certService.finishIssueCertIdentity(request.getEcKey(), trackId, false, checkCondition.getErrorCode(),
+                    checkCondition.getErrorMessage());
+            return serviceResult;
+        } else if (checkCondition.get().getReqType().equals(ContractReqType.WORKING)) {
+            // 누군가 작업중이면 그냥 조회하라고 id를 넘긴다.
+            serviceResult.succeed(checkCondition.get().getCertId());
+            return serviceResult;
+        }
+        String id = checkCondition.get().getCertId();
+
+        // 백그라운드로 발급 넘김.
+        CompletableFuture<ServiceResult<EvseCertificate>> certFuture = getSelf().issueCertificateAsync(id, request,
+                trackId);
+        // 발급의 종료에 kafka를 구독시킴
+        // 비동기 작업 완료 후 처리
+        certFuture.thenAccept(certResult -> {
+            if (certResult.getSuccess()) {
+                try{
+                    kafkaService.sendCertResult(certResult.get(), trackId);
+                }catch(Exception ex){
+                    ex.printStackTrace();
+                }
+                certService.finishIssueCertIdentity(request.getEcKey(), trackId, true, 200, certResult.getErrorMessage());
+            }else{
+                certService.finishIssueCertIdentity(request.getEcKey(), trackId, false, certResult.getErrorCode(), certResult.getErrorMessage());
+            }
+        }).exceptionally(ex -> {
+            // 예외 처리
+            apiLogger.error("TAG:CERT_UNKNOWN_ERROR, TRACK ID: {}, MESSAGE: {}", trackId,
+                    ex.getMessage());
+            return null;
+        });
+
+        // 위 과정이 오래걸리니 일단은 무조건 성공으로 id를 먼저 리턴.
+        serviceResult.succeed(id);
+        return serviceResult;
+    }
+
+    public ServiceResult<String> issueCertificatePrevious(PncReqBodyIssueCert request, String trackId) {
         ServiceResult<String> serviceResult = new ServiceResult<>();
         // 풀링용 아이디.
         String id = IdHelper.genLowerUUID32();
@@ -257,6 +309,7 @@ public class PreviewCertificationService {
         kafkaObject.setCertType(certType);
         kafkaObject.setAuthorities(authorities);
         kafkaObject.setResult("FAIL");
+        
 
         // 2. DB에 풀링 저장
         ServiceResult<String> initCertResult = certService.initNewCert(certId, csr);
@@ -268,7 +321,9 @@ public class PreviewCertificationService {
         }
 
         // 3. KPIP에게 인증서 요청
-        ServiceResult<KpipIssueCertFactory> kpipIssueResult = kpipIssue(certType, csr, issueType, trackId);
+        // csr이 PEM 으로 들어오는 경우를 대비해서, 헤더/푸터와 모든 개행문자를 제거하고 보낸다.
+        String derCsr = certificateConversionService.convertToBase64DER(csr);
+        ServiceResult<KpipIssueCertFactory> kpipIssueResult = kpipIssue(certType, derCsr, issueType, trackId);
         if (kpipIssueResult.isFail()) {
             // serviceResult.fail(500, "kpip에서의 발급이 실패하였습니다.");
             kafkaObject.setMessage(kpipIssueResult.getErrorMessage());
@@ -278,7 +333,7 @@ public class PreviewCertificationService {
 
         KpipIssueCertFactory issueFactory = kpipIssueResult.get();
 
-        // 4. 검증해서 kafka에 결과를 보냄.
+        // 4. 검증해서 kafka에 보낼 값을 세팅함.
         checkIssueResult(certId, kafkaObject, issueFactory, trackId);
 
         serviceResult.succeed(kafkaObject);
@@ -310,17 +365,18 @@ public class PreviewCertificationService {
             }
 
             // 받은 Base64 DER Encoded 인증서를 PEM으로 변환하여 넣기
-            String pemSubCa2 = certificateConversionService.convertToPEM(subCa2);
-            if (pemSubCa2 == null) {
-                kafkaObject.setMessage("kpip의 subCa2 인증서를 PEM으로 변환에 실패하였습니다");
-                return kafkaObject;
-            }
             String pemLeafCert = certificateConversionService.convertToPEM(leafCert);
             if (pemLeafCert == null) {
                 kafkaObject.setMessage("kpip의 leaf 인증서를 PEM으로 변환에 실패하였습니다");
                 return kafkaObject;
             }
-            kafkaObject.setCertificateChain(pemSubCa2);
+            // 받은 Base64 DER Encoded 인증서 두개로 PEM 인증서 체인 만들기
+            String certChain = convertAndMergeCerts(leafCert, subCa2);
+            if (certChain == null) {
+                kafkaObject.setMessage("인증서 체인 작성에 실패하였습니다.");
+                return kafkaObject;
+            }
+            kafkaObject.setCertificateChain(certChain);
             kafkaObject.setCertificate(pemLeafCert);
 
             try {
@@ -450,14 +506,14 @@ public class PreviewCertificationService {
         // 풀링용 아이디.
         // 조건을 보고 DB에서 조회해봐야한다.
         String id = null;
-        String decodedCert = certificateConversionService.decodeBase64(request.getCertificate());
+        String decodedCert = request.getCertificate();
         ServiceResult<CertificationMeta> certMetaResult = certService.findCertByPEM(request.getEcKey(),
                 decodedCert);
         if (certMetaResult.getSuccess()) {
             id = certMetaResult.get().getCertId();
         }
         if (id == null) {
-            serviceResult.fail(404, "해시값이 일치하는 인증서가 존재하지 않습니다.");
+            serviceResult.fail(404, "일치하는 인증서가 존재하지 않습니다.");
         }
         // 백그라운드로 삭제 넘김.
         CompletableFuture<ServiceResult<EvseCertificate>> certFuture = getSelf().revokeCertificateAsync(id, request,
@@ -529,7 +585,7 @@ public class PreviewCertificationService {
             return CompletableFuture.completedFuture(serviceResult);
         }
 
-        String decodedCert = certificateConversionService.decodeBase64(pem);
+        String decodedCert = pem;
         EvseCertificate kafkaObject = new EvseCertificate();
         kafkaObject.setEcKey(ecKey);
         kafkaObject.setIssueType(issueType);
@@ -661,61 +717,146 @@ public class PreviewCertificationService {
     }
 
     // #endregion
+    // #region CERT-RESPONSE
+    public ServiceResult<OcspResponse> ocspCertCheck(PncReqBodyOCSPMessage request, String trackId) {
+        ServiceResult<OcspResponse> serviceResult = new ServiceResult<>();
+        // 풀링용 아이디.
+        Long ecKey = request.getEcKey();
+        if(ecKey == null){
+            serviceResult.fail(400, "EC KEY가 올바르지 않습니다.");
+            return serviceResult;
+        }
+        // 그냥 그대로 전달하고 리턴값도 그대로 달라고 해서 그렇게 짠다.
+        // 그렇게 말해놓고 막상 값은 안보내줘서 내부에서 파싱해야된다. 그니까 주워온다.
+        ServiceResult<CertificationMeta> certResult =  certService.findCertByEcKey(ecKey);
+        if(certResult.isFail()){
+            serviceResult.fail(certResult.getErrorCode(), certResult.getErrorMessage());
+            return serviceResult;
+        }
+        // cert에서 ocsp url을 파싱한다.
+        String ocspUrl;
+        try{
+            String fullCert = certResult.get().getFullCert();
+            CertificateInfo info = certificateConversionService.getCertInfoFromPEM(fullCert);
 
+            ocspUrl = info.getOcspUrl();
+
+        }catch(Exception ex){
+            ex.printStackTrace();
+            serviceResult.fail(400, "인증서의 ocspUrl값을 분석하는 데 실패하였습니다.");
+            return serviceResult;
+        }
+
+
+        KpipReqBodyGetOcspMessage kpipRequest = new KpipReqBodyGetOcspMessage();
+        kpipRequest.setOcspReq(request.getOcspRequestData());
+        kpipRequest.setOcspUrl(ocspUrl);
+
+        ServiceResult<Map<String, Object>> kpipResult = kpipApiService.getOcspResponseMessageFull(kpipRequest, trackId);
+
+        if(kpipResult.isFail()){
+            serviceResult.fail(500, kpipResult.getErrorMessage());
+        }else{
+            KpipOcspFactory factory = new KpipOcspFactory(kpipResult.get());
+            OcspResponse ocspRes = new OcspResponse();
+            ocspRes.setOcspRes(factory.getOcspRes());
+            ocspRes.setStatus(factory.getStatus());
+            serviceResult.succeed(ocspRes);
+        }
+        return serviceResult;
+    }
+    private class KpipOcspFactory{
+        private Map<String, Object> rawResult;
+
+        private boolean systemStatus = true;
+        @Getter
+        private String resultMessage;
+        private String resultCode;
+
+        @Getter
+        private String ocspRes;
+        @Getter
+        private String status;
+
+        public KpipOcspFactory(Map<String, Object> rawResult) {
+            this.rawResult = rawResult;
+            try {
+                resultCode = (String) rawResult.get("resultCode");
+                resultMessage = (String) rawResult.get("resultMsg");
+                ocspRes = (String) rawResult.get("ocspRes");
+                status = (String) rawResult.get("status");
+
+            } catch (Exception ex) {
+                systemStatus = false;
+                resultCode = "INTERNAL_FAIL";
+                resultMessage = "resultCode 및 resultMsg 형식 불일치";
+            }
+        }
+    }
+
+    // #endregion
     // #region CONTRACT-ISSUE
     // 저쪽이 폴링할 수 있는 id를 리턴
-    @Transactional
     public ServiceResult<String> issueContract(PncReqBodyIssueContract request, String trackId) {
         ServiceResult<String> serviceResult = new ServiceResult<>();
         // Issue를 어떻게 진행할지 결정
         boolean requestNew = "NEW".equalsIgnoreCase(request.getIssueType());
-        ServiceResult<CheckContractIssueCondition> checkCondition = contractManageService.checkCondition(request.getPcid(), request.getMemberKey(), trackId, requestNew);
-        if(checkCondition.isFail()){
+        ServiceResult<CheckContractIssueCondition> checkCondition = contractManageService
+                .checkCondition(request.getPcid(), request.getMemberKey(), trackId, requestNew);
+        if (checkCondition.isFail()) {
             serviceResult.fail(checkCondition.getErrorCode(), checkCondition.getErrorMessage());
-            contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId, false, checkCondition.getErrorMessage());
+            contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId, false,
+                    checkCondition.getErrorCode(), checkCondition.getErrorMessage());
             return serviceResult;
-        }else if(checkCondition.get().getReqType().equals(ContractReqType.WORKING)){
+        } else if (checkCondition.get().getReqType().equals(ContractReqType.WORKING)) {
             // 누군가 작업중이면 그냥 조회하라고 id를 넘긴다.
             serviceResult.succeed(checkCondition.get().getContractId());
             return serviceResult;
         }
-        
+
         String id = checkCondition.get().getContractId();
         ContractReqType reqType = checkCondition.get().getReqType();
 
         // 백그라운드로 발급 넘김.
-        CompletableFuture<ServiceResult<ContCertKafkaDTO>> certFuture = getSelf().issueContractAsync(id, request, reqType, trackId);
+        CompletableFuture<ServiceResult<ContCertKafkaDTO>> certFuture = getSelf().issueContractAsync(id, request,
+                reqType, trackId);
         // 발급의 종료에 kafka를 구독시킴
         // 비동기 작업 완료 후 처리
         certFuture.thenAccept(certResult -> {
             if (certResult.getSuccess()) {
                 ContCertKafkaDTO dto = certResult.get();
-                if (dto.isSuccess()) {
+                try {
+                    if (dto.isSuccess()) {
 
-                    kafkaService.sendContCertSuccessKafka(dto.getEmaId(),
-                            dto.getOemId(),
-                            dto.getPcid(),
-                            dto.getMemberKey(),
-                            dto.getMemberGroupId(),
-                            dto.getMemberGroupSeq(),
-                            dto.getContCert(),
-                            trackId,
-                            "Normal");
-                } else {
-                    kafkaService.sendContCertFailKafka(dto.getEmaId(),
-                            dto.getOemId(),
-                            dto.getPcid(),
-                            dto.getMemberKey(),
-                            dto.getMemberGroupId(),
-                            dto.getMemberGroupSeq(),
-                            trackId,
-                            dto.getMessage());
+                        kafkaService.sendContCertSuccessKafka(dto.getEmaId(),
+                                dto.getOemId(),
+                                dto.getPcid(),
+                                dto.getMemberKey(),
+                                dto.getMemberGroupId(),
+                                dto.getMemberGroupSeq(),
+                                dto.getContCert(),
+                                trackId,
+                                "Normal");
+                    } else {
+                        kafkaService.sendContCertFailKafka(dto.getEmaId(),
+                                dto.getOemId(),
+                                dto.getPcid(),
+                                dto.getMemberKey(),
+                                dto.getMemberGroupId(),
+                                dto.getMemberGroupSeq(),
+                                trackId,
+                                dto.getMessage());
+                    }
+
+                } catch (Exception ex) {
+                    ex.printStackTrace();
                 }
-                contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId, 
-                dto.isSuccess(), dto.getMessage());
-         
-            }else {
-                contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId, false, certResult.getErrorMessage());
+                contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId,
+                        dto.isSuccess(), 200, dto.getMessage());
+
+            } else {
+                contractManageService.finishIssueContractIdentity(request.getPcid(), request.getMemberKey(), trackId,
+                        false, certResult.getErrorCode(), certResult.getErrorMessage());
             }
         }).exceptionally(ex -> {
             // 예외 처리
@@ -729,142 +870,142 @@ public class PreviewCertificationService {
         return serviceResult;
     }
 
-
     // 이걸 실패하면, 원본의 구독해제도 해줘야할 것이다. (실패면 죽은것과 다름없기때문)
-@Async 
-CompletableFuture<ServiceResult<ContCertKafkaDTO>> issueContractAsync(String contractId, 
-PncReqBodyIssueContract request, 
-ContractReqType reqType, 
-String trackId){
-    ServiceResult<ContCertKafkaDTO> serviceResult = new ServiceResult<>();
-    // 1. 요청바디의 값 확인 // 1-1. pcid (vin 차대번호)
-    String pcid;
-    // 1-2. oemId ("BMW")
-    String oemId;
-    // 1-3. memberKey
-    Long memberKey;
-    // 1-4. memberGroupId
-    String memberGroupId;
-    // 1-5. memberGroupSeq
-    Long memberGroupSeq;
-    try {
-        // 1-1. pcid (vin 차대번호)
-        pcid = request.getPcid();
-        // 1-2. oemId ("BMW")
-        oemId = request.getOemId();
+    @Async
+    public CompletableFuture<ServiceResult<ContCertKafkaDTO>> issueContractAsync(String contractId,
+            PncReqBodyIssueContract request,
+            ContractReqType reqType,
+            String trackId) {
+        ServiceResult<ContCertKafkaDTO> serviceResult = new ServiceResult<>();
+        // 1. 요청바디의 값 확인 // 1-1. pcid
+        String pcid;
+        // 1-2. oemId
+        String oemId;
         // 1-3. memberKey
-        memberKey = request.getMemberKey();
+        Long memberKey;
         // 1-4. memberGroupId
-        memberGroupId = request.getMemberGroupId();
+        String memberGroupId;
         // 1-5. memberGroupSeq
-        memberGroupSeq = request.getMemberGroupSeq();
+        Long memberGroupSeq;
+        try {
+            // 1-1. pcid
+            pcid = request.getPcid();
+            // 1-2. oemId
+            oemId = request.getOemId();
+            // 1-3. memberKey
+            memberKey = request.getMemberKey();
+            // 1-4. memberGroupId
+            memberGroupId = request.getMemberGroupId();
+            // 1-5. memberGroupSeq
+            memberGroupSeq = request.getMemberGroupSeq();
 
-    } catch (Exception ex) {
-        ContCertKafkaDTO kafkaObject = new ContCertKafkaDTO();
-        kafkaObject.setSuccess(false);
-        kafkaObject.setMessage("요청값이 유효하지 않습니다.");
-        serviceResult.succeed(kafkaObject);
-        // serviceResult.fail(400, "요청값이 유효하지 않습니다.");
-        String bodyJson = "";
-        if (request != null) {
-            try {
-                bodyJson = objectMapper.writeValueAsString(request);
-            } catch (Exception e) {
+        } catch (Exception ex) {
+            ContCertKafkaDTO kafkaObject = new ContCertKafkaDTO();
+            kafkaObject.setSuccess(false);
+            kafkaObject.setMessage("요청값이 유효하지 않습니다.");
+            serviceResult.succeed(kafkaObject);
+            // serviceResult.fail(400, "요청값이 유효하지 않습니다.");
+            String bodyJson = "";
+            if (request != null) {
+                try {
+                    bodyJson = objectMapper.writeValueAsString(request);
+                } catch (Exception e) {
 
+                }
             }
-        }
-        if (apiLogger.isErrorEnabled()) {
-            apiLogger.error("TAG:CERT_ISSUE_ERROR, TRACK ID: {}, MESSAGE: {}, Request: {}", trackId,
-                    "요청값 캐스팅실패.",
-                    bodyJson);
-        }
-        return CompletableFuture.completedFuture(serviceResult);
-    }
-    
-    ContCertKafkaDTO kafkaObject = new ContCertKafkaDTO();
-    kafkaObject.setOemId(oemId);
-    kafkaObject.setPcid(pcid);
-    kafkaObject.setMemberKey(memberKey);
-    kafkaObject.setMemberGroupId(memberGroupId);
-    kafkaObject.setMemberGroupSeq(memberGroupSeq);
-    kafkaObject.setSuccess(false);
-
-    // 2. DB에 풀링은 저장되어있다. 그냥 가져와서 쓴다.
-
-    ServiceResult<ContractMeta> initContractResult = contractManageService.findById(contractId);
-    if (initContractResult.isFail()) {
-        // serviceResult.fail(500, "요청을 생성하지 못했습니다.");
-        kafkaObject.setMessage("요청을 생성하지 못했습니다.");
-        kafkaObject.setSuccess(false);
-        serviceResult.succeed(kafkaObject);
-        return CompletableFuture.completedFuture(serviceResult);
-    }
-    String emaId = initContractResult.get().getEmaId();
-    if(emaId == null){
-        // 신규
-        emaId = "KR" + "CEV" + "CA" + String.format("%07d", initContractResult.get().getEmaBaseNumber());
-    }
-    kafkaObject.setEmaId(emaId);
-
-    // 단순저장이고, 잘된다면 후에 저장될것이니 일단 체크하지않는다.
-    contractManageService.setIssuedContractInput(contractId,
-    kafkaObject.getEmaId(),
-    kafkaObject.getPcid(),
-    kafkaObject.getOemId(),
-    kafkaObject.getMemberKey(),
-    kafkaObject.getMemberGroupId(),
-    kafkaObject.getMemberGroupSeq());
-    // 3. KPIP에게 인증서 요청
-    ServiceResult<KpipIssueContractFactory> kpipIssueResult = kpipIssueContract(pcid, emaId, oemId,reqType, trackId);
-    if (kpipIssueResult.isFail()) {
-        // serviceResult.fail(500, "kpip에서의 발급이 실패하였습니다.");
-        kafkaObject.setMessage(kpipIssueResult.getErrorMessage());
-        kafkaObject.setSuccess(false);
-        serviceResult.succeed(kafkaObject);
-        return CompletableFuture.completedFuture(serviceResult);
-    }
-
-    KpipIssueContractFactory issueFactory = kpipIssueResult.get();
-
-    // 4. 발급된것을 DB에 저장한다.
-    // 메세지같은게 안쓰여서 딱히 세팅할건없음. DB저장을 메인으로
-    int savedResult = checkContractIssueResult(contractId, kafkaObject, issueFactory, trackId);
-    boolean needRevoke = false;
-
-    if (savedResult > 0) {
-        // 발급을 성공했다. Whitelist시킨다.
-        ServiceResult<KpipWhitelistFactory> kpipWhitelistResult = kpipWhitelist(emaId, trackId);
-        // 2-2. 여기에서 실패 처리, 현재 논의된 방향은 whitelist 업데이트에 실패한 건들만 모아놨다가
-        // 하루에 한 번 정도 (배치) 요청을 다시 보내는 방향으로 정리되었음.
-        checkContractWhitelist(contractId, kpipWhitelistResult.getSuccess());
-        kafkaObject.setSuccess(true);
-    } else if(savedResult < 0){
-        // 인증서는 정상이더라도 우리 DB에서 실패했으므로 revoke를 요청시킨다.
-        kafkaObject.setMessage("내부 관리중 오류가 발견되었습니다. 발급된 인증서를 Revoke합니다.");
-        needRevoke = true;
-    }else{
-        // 그냥 발급자체가 실패다.
-        kafkaObject.setMessage(issueFactory.getResultMessage());
-    }
-
-    if (needRevoke) {
-        ServiceResult<KpipRevokeContractFactory> revokeResult = kpipRevokeContract(emaId, trackId);
-        if (revokeResult.isFail()) {
-            // db에 저장이 안되었는데 발급취소도 못했다.
-            // 당장은 할수있는건 없다. 일단 로그에 쌓아만두자.
             if (apiLogger.isErrorEnabled()) {
-                apiLogger.error("TAG:CONTRACT_ISSUE_ERROR, TRACK ID: {}, MESSAGE: {}, emaId: {}", trackId,
-                        "DB 저장에 실패한 인증서를 파기하는데 실패하였습니다..",
-                        emaId);
+                apiLogger.error("TAG:CONTRACT_ISSUE_ERROR, TRACK ID: {}, MESSAGE: {}, Request: {}", trackId,
+                        "요청값 캐스팅실패.",
+                        bodyJson);
+            }
+            return CompletableFuture.completedFuture(serviceResult);
+        }
+
+        ContCertKafkaDTO kafkaObject = new ContCertKafkaDTO();
+        kafkaObject.setOemId(oemId);
+        kafkaObject.setPcid(pcid);
+        kafkaObject.setMemberKey(memberKey);
+        kafkaObject.setMemberGroupId(memberGroupId);
+        kafkaObject.setMemberGroupSeq(memberGroupSeq);
+        kafkaObject.setSuccess(false);
+
+        // 2. DB에 풀링은 저장되어있다. 그냥 가져와서 쓴다.
+
+        ServiceResult<ContractMeta> initContractResult = contractManageService.findById(contractId);
+        if (initContractResult.isFail()) {
+            // serviceResult.fail(500, "요청을 생성하지 못했습니다.");
+            kafkaObject.setMessage("요청을 생성하지 못했습니다.");
+            kafkaObject.setSuccess(false);
+            serviceResult.succeed(kafkaObject);
+            return CompletableFuture.completedFuture(serviceResult);
+        }
+        String emaId = initContractResult.get().getEmaId();
+        if (emaId == null) {
+            // 신규
+            emaId = "KR" + "CEV" + "CA" + String.format("%07d", initContractResult.get().getEmaBaseNumber());
+        }
+        kafkaObject.setEmaId(emaId);
+
+        // 단순저장이고, 잘된다면 후에 저장될것이니 일단 체크하지않는다.
+        contractManageService.setIssuedContractInput(contractId,
+                kafkaObject.getEmaId(),
+                kafkaObject.getPcid(),
+                kafkaObject.getOemId(),
+                kafkaObject.getMemberKey(),
+                kafkaObject.getMemberGroupId(),
+                kafkaObject.getMemberGroupSeq());
+        // 3. KPIP에게 인증서 요청
+        ServiceResult<KpipIssueContractFactory> kpipIssueResult = kpipIssueContract(pcid, emaId, oemId, reqType,
+                trackId);
+        if (kpipIssueResult.isFail()) {
+            // serviceResult.fail(500, "kpip에서의 발급이 실패하였습니다.");
+            kafkaObject.setMessage(kpipIssueResult.getErrorMessage());
+            kafkaObject.setSuccess(false);
+            serviceResult.succeed(kafkaObject);
+            return CompletableFuture.completedFuture(serviceResult);
+        }
+
+        KpipIssueContractFactory issueFactory = kpipIssueResult.get();
+
+        // 4. 발급된것을 DB에 저장한다.
+        // 메세지같은게 안쓰여서 딱히 세팅할건없음. DB저장을 메인으로
+        int savedResult = checkContractIssueResult(contractId, kafkaObject, issueFactory, trackId);
+        boolean needRevoke = false;
+
+        if (savedResult > 0) {
+            // 발급을 성공했다. Whitelist시킨다.
+            ServiceResult<KpipWhitelistFactory> kpipWhitelistResult = kpipWhitelist(emaId, trackId);
+            // 2-2. 여기에서 실패 처리, 현재 논의된 방향은 whitelist 업데이트에 실패한 건들만 모아놨다가
+            // 하루에 한 번 정도 (배치) 요청을 다시 보내는 방향으로 정리되었음.
+            checkContractWhitelist(contractId, kpipWhitelistResult.getSuccess());
+            kafkaObject.setSuccess(true);
+        } else if (savedResult < 0) {
+            // 인증서는 정상이더라도 우리 DB에서 실패했으므로 revoke를 요청시킨다.
+            kafkaObject.setMessage("내부 관리중 오류가 발견되었습니다. 발급된 인증서를 Revoke합니다.");
+            needRevoke = true;
+        } else {
+            // 그냥 발급자체가 실패다.
+            kafkaObject.setMessage(issueFactory.getResultMessage());
+        }
+
+        if (needRevoke) {
+            ServiceResult<KpipRevokeContractFactory> revokeResult = kpipRevokeContract(emaId, trackId);
+            if (revokeResult.isFail()) {
+                // db에 저장이 안되었는데 발급취소도 못했다.
+                // 당장은 할수있는건 없다. 일단 로그에 쌓아만두자.
+                if (apiLogger.isErrorEnabled()) {
+                    apiLogger.error("TAG:CONTRACT_ISSUE_ERROR, TRACK ID: {}, MESSAGE: {}, emaId: {}", trackId,
+                            "DB 저장에 실패한 인증서를 파기하는데 실패하였습니다..",
+                            emaId);
+                }
             }
         }
+
+        serviceResult.succeed(kafkaObject);
+        return CompletableFuture.completedFuture(serviceResult);
     }
 
-    serviceResult.succeed(kafkaObject);
-    return CompletableFuture.completedFuture(serviceResult);
-}
-
-// 발급자체가 성공해야한다.
+    // 발급자체가 성공해야한다.
     private int checkContractIssueResult(String contractId,
             ContCertKafkaDTO kafkaObject,
             KpipIssueContractFactory issueFactory,
@@ -932,18 +1073,16 @@ String trackId){
         return result;
     }
 
-
-    private ServiceResult<KpipIssueContractFactory> kpipIssueContract(String pcid, String emaId, String oemId, ContractReqType reqType,
+    private ServiceResult<KpipIssueContractFactory> kpipIssueContract(String pcid, String emaId, String oemId,
+            ContractReqType reqType,
             String trackId) {
         ServiceResult<KpipIssueContractFactory> result = new ServiceResult<>();
         KpipReqBodyIssueContractCert kpipRequest = new KpipReqBodyIssueContractCert();
-        if(reqType == null || reqType.equals(ContractReqType.NEW)){
+        if (reqType == null || reqType.equals(ContractReqType.NEW) || reqType.equals(ContractReqType.ADD)) {
             kpipRequest.setReqType("New");
-        }else if(reqType.equals(ContractReqType.UPDATE)){
+        } else if (reqType.equals(ContractReqType.UPDATE)) {
             kpipRequest.setReqType("Update");
-        } else if(reqType.equals(ContractReqType.ADD)){
-            kpipRequest.setReqType("Add");
-        }else{
+        } else {
             kpipRequest.setReqType("New");
         }
         kpipRequest.setPcid(pcid);
@@ -1067,7 +1206,8 @@ String trackId){
             return serviceResult;
         }
         // 백그라운드로 삭제 넘김.
-        CompletableFuture<ServiceResult<ContCertKafkaDTO>> certFuture = revokeContractAsync(certMetaResult.get(),
+        CompletableFuture<ServiceResult<ContCertKafkaDTO>> certFuture = getSelf().revokeContractAsync(
+                certMetaResult.get(),
                 request, trackId);
         // 발급의 종료에 kafka를 구독시킴
         // 비동기 작업 완료 후 처리
@@ -1111,7 +1251,7 @@ String trackId){
 
     // 재신청시 ContractIdentity에도 표시해야할까? => 어차피 쿼리해서 체크하니까 의미는 없지만, 그래도 지워주자.
     @Async
-    private CompletableFuture<ServiceResult<ContCertKafkaDTO>> revokeContractAsync(ContractMeta contractMeta,
+    public CompletableFuture<ServiceResult<ContCertKafkaDTO>> revokeContractAsync(ContractMeta contractMeta,
             PncReqBodyRevokeContractCert request,
             String trackId) {
         ServiceResult<ContCertKafkaDTO> serviceResult = new ServiceResult<>();
@@ -1128,8 +1268,6 @@ String trackId){
 
         kafkaObject.setSuccess(false);
 
-        String certCn = "";
-
         ServiceResult<KpipRevokeContractFactory> kpipIssueResult = kpipRevokeContract(emaId, trackId);
         if (kpipIssueResult.isFail()) {
             // kafkaObject.setMessage("kpip에서의 revoke가 실패하였습니다");
@@ -1138,6 +1276,7 @@ String trackId){
         }
 
         KpipRevokeContractFactory revokeFactory = kpipIssueResult.get();
+        kafkaObject.setSuccess(true);
         // 4. 발급된것을 DB에 저장한다.
         // 메세지같은게 안쓰여서 딱히 세팅할건없음. DB저장을 메인으로
         checkContractRevokeResult(contractMeta.getContractId(), kafkaObject, revokeFactory, trackId);
@@ -1268,6 +1407,26 @@ String trackId){
     }
 
     // #endregion
+    // #region CONTRACT-CHECK
+    public ServiceResult<ContractStatus> getContractStatus(String emaId, String trackId) {
+        ServiceResult<ContractStatus> result = new ServiceResult<>();
+
+        // 직접 DB에서 가져올까 했지만 그래도 역할군을 나눠두는게
+        // 이 클래스엔 많이 넣어두고, 만약 제한해야되면 Controller단에서 DTO새로만들어서 쓰라고 하자.
+        ServiceResult<ContractStatus> statusService = contractManageService.getContractStatusByContractId(emaId);
+
+        if (statusService.getSuccess()) {
+            result.succeed(statusService.get());
+        } else {
+            result.fail(statusService.getErrorCode(), statusService.getErrorMessage());
+        }
+        return result;
+        //
+
+    }
+
+    // #endregion
+    // #region CONTRACT-INFO
     public ServiceResult<ContractInfo> getContractInfo(PncReqBodyContractInfo request, String trackId) {
         ServiceResult<ContractInfo> serviceResult = new ServiceResult<>();
         // 1. 요청바디의 값 확인
@@ -1316,7 +1475,7 @@ String trackId){
 
         // 체크
         // 치명적에러
-        if(fullContCert == null ){
+        if (fullContCert == null) {
             if (apiLogger.isErrorEnabled()) {
                 apiLogger.error("TAG:CONTRACT_GET_ERROR, TRACK ID: {},CONTRACT_ID: , MESSAGE: {}", trackId, contractId,
                         "인증서 전문이 존재하지 않는 계약.");
@@ -1493,6 +1652,33 @@ String trackId){
             }
         }
 
+    }
+    // #endregion
+
+    // #region CONVERT-CERT
+    private String convertToPemFromBase64Der(String base64DerCert) {
+        StringBuilder pem = new StringBuilder();
+        pem.append("-----BEGIN CERTIFICATE-----\n");
+        int lineLength = 64;
+        for (int i = 0; i < base64DerCert.length(); i += lineLength) {
+            int endIndex = Math.min(i + lineLength, base64DerCert.length());
+            pem.append(base64DerCert.substring(i, endIndex));
+            if (endIndex < base64DerCert.length()) {
+                pem.append("\n");
+            }
+        }
+        pem.append("\n-----END CERTIFICATE-----");
+        return pem.toString();
+    }
+
+    private String mergeTwoPemCertsIntoChain(String leaf, String sub) {
+        return leaf + '\n' + sub;
+    }
+
+    private String convertAndMergeCerts(String base64DerLeafCert, String base64DerSubCaCert) {
+        String pemLeafCert = convertToPemFromBase64Der(base64DerLeafCert);
+        String pemSubCaCert = convertToPemFromBase64Der(base64DerSubCaCert);
+        return mergeTwoPemCertsIntoChain(pemLeafCert, pemSubCaCert);
     }
     // #endregion
 

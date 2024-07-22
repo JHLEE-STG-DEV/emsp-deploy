@@ -8,5 +8,5 @@ public class KpipReqBodyVerifyOcsp {
     @Schema(description = "Base64 encoded DER format of verifying certificate", example="MIICmDCC...SP2jaE5Y=")
     private String cert;
     @Schema(description = "Nonce 사용여부 (현재 사용하지 않음)", example="false")
-    private String nonce;
+    private Boolean nonce;
 }

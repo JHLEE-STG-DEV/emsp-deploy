@@ -2,14 +2,18 @@ package com.chargev.emsp.entity.contract;
 
 import java.util.Date;
 
+import com.chargev.emsp.entity.listeners.ContractListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "EV_CONTRACT")
 @Entity
+@EntityListeners(ContractListener.class)
 @Data
 public class Contract {
     @Id

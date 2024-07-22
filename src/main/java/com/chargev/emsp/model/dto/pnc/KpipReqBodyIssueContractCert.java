@@ -11,7 +11,7 @@ public class KpipReqBodyIssueContractCert {
     private String pcid;
     @Schema(description = "emaid 계약 ID", example="KRCEVCA5347803")
     private String emaid;
-    @Schema(description = "OEM ID", example="BMW")
+    @Schema(description = "OEM ID", example="KMK")
     private String oemid;
     @Schema(description = "Month (up to 24, default 24month)", example="24")
     private String expPolicy;

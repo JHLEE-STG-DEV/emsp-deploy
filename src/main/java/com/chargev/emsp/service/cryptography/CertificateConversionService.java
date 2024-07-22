@@ -15,6 +15,8 @@ import javax.naming.ldap.Rdn;
 import org.bouncycastle.asn1.ASN1InputStream;
 import org.bouncycastle.asn1.ASN1Primitive;
 import org.bouncycastle.asn1.DEROctetString;
+import org.bouncycastle.asn1.x509.AccessDescription;
+import org.bouncycastle.asn1.x509.AuthorityInformationAccess;
 import org.bouncycastle.asn1.x509.CRLDistPoint;
 import org.bouncycastle.asn1.x509.DistributionPoint;
 import org.bouncycastle.asn1.x509.DistributionPointName;
@@ -81,12 +83,13 @@ public class CertificateConversionService {
 
     // PEM 형식의 X.509 인증서를 Base64 인코딩된 DER 형식으로 변환합니다.
     public String convertToBase64DER(String pemCert) {
-        if(pemCert == null || pemCert.isEmpty()) {
+        if (pemCert == null || pemCert.isEmpty()) {
             return null;
         }
-        return pemCert.replace("-----BEGIN CERTIFICATE-----", "")
-                                   .replace("-----END CERTIFICATE-----", "")
-                                   .replaceAll("\\s", "");
+        // Remove PEM header, footer, and all whitespace characters
+        return pemCert.replaceAll("-----BEGIN [^-]+-----", "")
+                      .replaceAll("-----END [^-]+-----", "")
+                      .replaceAll("\\s", "");
     }
 
     private X509Certificate getCertificateFromBase64(String base64Cert)  {
@@ -146,6 +149,7 @@ public class CertificateConversionService {
 
         // 필요한 정보 추출
         String crlDistributionPoints = getCRLDistributionPoints(cert); // CRL 배포 주소
+        String ocspUrl = getOCSPUrl(cert);
         Date expirationDate = cert.getNotAfter(); // 인증서 만료일
         Date issueDate = cert.getNotBefore(); // 인증서 발급일
         String issuerDN = cert.getIssuerX500Principal().getName(); // Issuer DN
@@ -159,6 +163,7 @@ public class CertificateConversionService {
         String subjectCN = extractCNFromDN(subjectDN);
 
         result.setCrlDistributionPoints(crlDistributionPoints);
+        result.setOcspUrl(ocspUrl);
         result.setExpirationDate(expirationDate);
         result.setIssueDate(issueDate);
         result.setIssuerDN(issuerDN);
@@ -243,6 +248,42 @@ public class CertificateConversionService {
         return null;
     }
 
+    // X.509 인증서 객체에서 ocsp url을 얻는다.
+    private String getOCSPUrl(X509Certificate cert) {
+        try {
+            byte[] aiaExtensionValue = cert.getExtensionValue("1.3.6.1.5.5.7.1.1");
+            if (aiaExtensionValue == null) {
+                return "No OCSP URL found in the certificate.";
+            }
+
+            ASN1InputStream oAsnInStream = new ASN1InputStream(new ByteArrayInputStream(aiaExtensionValue));
+            ASN1Primitive derObjAIA = oAsnInStream.readObject();
+            DEROctetString dosAIA = (DEROctetString) derObjAIA;
+            byte[] aiaExtOctets = dosAIA.getOctets();
+            ASN1InputStream oAsnInStream2 = new ASN1InputStream(new ByteArrayInputStream(aiaExtOctets));
+            ASN1Primitive derObj2 = oAsnInStream2.readObject();
+            AuthorityInformationAccess authorityInformationAccess = AuthorityInformationAccess.getInstance(derObj2);
+            StringBuilder ocspUrls = new StringBuilder();
+
+            AccessDescription[] accessDescriptions = authorityInformationAccess.getAccessDescriptions();
+            for (AccessDescription ad : accessDescriptions) {
+                if (ad.getAccessMethod().equals(AccessDescription.id_ad_ocsp)) {
+                    GeneralName gn = ad.getAccessLocation();
+                    if (gn.getTagNo() == GeneralName.uniformResourceIdentifier) {
+                        String url = gn.getName().toString();
+                        ocspUrls.append(url).append("\n");
+                    }
+                }
+            }
+
+            return ocspUrls.toString().trim();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error parsing OCSP URLs.";
+        }
+    }
+
     // 시리얼 넘버를 16진수 형식으로 반환하는 메서드
     private String getFormattedSerialNumber(java.math.BigInteger serialNumber) {
         return "0x" + serialNumber.toString(16).toUpperCase();
@@ -252,8 +293,8 @@ public class CertificateConversionService {
     public void decodeCRL(String base64CRL) {
         try {
             // Base64 디코딩 (KEPCO에서 두 번 인코딩하여 보내므로 두 번 디코딩한다)
-            byte[] decodedCRL1 = java.util.Base64.getDecoder().decode(base64CRL);
-            byte[] decodedCRL = java.util.Base64.getDecoder().decode(decodedCRL1);
+
+            byte[] decodedCRL = java.util.Base64.getDecoder().decode(base64CRL);
 
             // PEM 데이터를 ByteArrayInputStream으로 변환
             ByteArrayInputStream bais = new ByteArrayInputStream(decodedCRL);

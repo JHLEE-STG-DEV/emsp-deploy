@@ -4,14 +4,18 @@ import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.chargev.emsp.entity.listeners.KpipRequestLogListener;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Data;
 
 @Table(name = "kpip_request_logs ")
 @Entity
+@EntityListeners(KpipRequestLogListener.class)
 @Data
 public class KpipRequestLog {
      @Id

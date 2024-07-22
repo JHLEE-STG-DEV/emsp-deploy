@@ -8,7 +8,7 @@ public class PncReqBodyIssueContract {
 
     @Schema(description = "PCID", example = "KMKPNC123456789AB0")
     private String pcid;
-    @Schema(description = "OEM ID", example = "BMW")
+    @Schema(description = "OEM ID", example = "KMK")
     private String oemId;
     @Schema(description = "Member Key")
     private Long memberKey;

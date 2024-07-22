@@ -28,7 +28,6 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
-    
     <!-- 루트 로거 설정 (시스템 로그) -->
     <root level="INFO">
         <appender-ref ref="STDOUT" />
