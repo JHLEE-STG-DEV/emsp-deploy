@@ -15,7 +15,6 @@ import com.chargev.emsp.repository.log.KafkaRequestLogRepository;
 import com.chargev.utils.IdHelper;
 import com.chargev.utils.JsonHelper;
 import com.chargev.utils.LocalFileManager;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -24,8 +23,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class KafkaLogServiceImpl implements KafkaLogService {
 
-    private final ObjectMapper objectMapper;
     private final KafkaRequestLogRepository logRepository;
+private final JsonHelper jsonHelper;
 
     private boolean backupLogActive = true;
     private boolean objectLogActive = true;
@@ -97,7 +96,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
         if (!logOnDb && backupLogActive) {
             // 비상용 로컬저장
             try {
-                String logJson = JsonHelper.objectToString(log);
+                String logJson = jsonHelper.objectToString(log);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(logKey));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패
@@ -109,7 +108,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
         // data object로 저장함.
         if (objectLogActive && data != null) {
             try {
-                String dataJson = JsonHelper.objectToString(data);
+                String dataJson = jsonHelper.objectToString(data);
                 LocalFileManager.writeToFile(dataJson, objectLogPath.resolve(logKey + "_data"));
             } catch (Exception ex) {
                 // 실패
@@ -136,7 +135,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(logId));
-                KafkaRequestLog logDeserialized = JsonHelper.stringToObject(logJson, KafkaRequestLog.class);
+                KafkaRequestLog logDeserialized = jsonHelper.stringToObject(logJson, KafkaRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -162,7 +161,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(logId));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패
@@ -200,7 +199,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(logId));
-                KafkaRequestLog logDeserialized = JsonHelper.stringToObject(logJson, KafkaRequestLog.class);
+                KafkaRequestLog logDeserialized = jsonHelper.stringToObject(logJson, KafkaRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -227,7 +226,7 @@ public class KafkaLogServiceImpl implements KafkaLogService {
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(logId));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패

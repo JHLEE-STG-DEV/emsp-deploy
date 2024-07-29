@@ -4,6 +4,6 @@ import lombok.Data;
 
 @Data
 public class ConnectorTypeCount {
-    private String standard;
+    private ConnectorType standard;
     private Number count;
 }

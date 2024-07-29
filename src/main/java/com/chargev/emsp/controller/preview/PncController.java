@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.chargev.emsp.model.dto.pnc.AuthorizeData;
 import com.chargev.emsp.model.dto.pnc.CheckRequest;
 import com.chargev.emsp.model.dto.pnc.ContractInfo;
 import com.chargev.emsp.model.dto.pnc.ContractStatus;
@@ -176,19 +177,31 @@ public class PncController {
         String trackId = logService.controllerLogStart(requestUrl, request);
 
         // 차지링크로 토스할 인증서. 만약 pem으로 들어오면 der로 변경 필요. (CertificateConversionService.convertToBase64DER 이용)
-        String cert = request.getCert();
         // 차지링크로 토스하는 boolean값. 현재 차지링크에서 미구현된 기능이라 그냥 false로 고정되게 넣거나, 들어온 값 전달하면 됨.
-        Boolean nonce = request.getNonce();
         // 요청바디로는 들어오지만, 이걸로 뭘 하거나 차지링크로 보내줄 필요는 없음. (충전기 고유 식별자)
-        Long ecKey = request.getEcKey();
-
+        
         // 들어온 정보 중 cert, nonce만 KpipReqBodyVerifyOcsp 객체로 담아
         // service.http.KpipApiService.verifyOcsp 로 전달하면 됨
+        ServiceResult<OcspResponse> serviceResult = certificateService.ocspVerification(request, trackId);
 
-        // 응답은 data 내부에 status 항목으로 전달 (차지링크에서 돌아오는 status 그대로 보내주면 됨)
         PncApiResponseObject response = new PncApiResponseObject();
+        if (serviceResult.isFail()) {
+            response.setCode(Integer.toString(serviceResult.getErrorCode()));
+            response.setMessage(serviceResult.getErrorMessage());
+            response.setResult(PncResponseResult.FAIL);
+        } else {
+            response.setCode("200");
+            response.setMessage("OK");
 
-        return response;
+            response.setResult(PncResponseResult.SUCCESS);
+
+            response.setData(Optional.ofNullable(serviceResult.get()));
+        }
+
+
+       logService.controllerLogEnd(trackId, serviceResult.getSuccess(), response.getCode(), response.getData().orElse(null));
+       return response;
+
     }
 
     @PostMapping("/contract/issue")
@@ -336,16 +349,21 @@ public class PncController {
             EVSE -> **MSP -> eMSP** -> ChargLink -> eMSP -> MSP <br><br>
             ChargeLink : /pnc-auth/authorize-account 로 account 유효성을 검증한다.
             """)
-    public PncApiResponse pncAuthorize(HttpServletRequest httpRequest, @RequestBody PncReqBodyAuthorize request) {
+    public PncApiResponseObject pncAuthorize(HttpServletRequest httpRequest, @RequestBody PncReqBodyAuthorize request) {
         // 요청 URL 가져오기
         String requestUrl = httpRequest.getRequestURL().toString();
 
         String trackId = logService.controllerLogStart(requestUrl, request);
 
-        PncApiResponse response = new PncApiResponse();
+        PncApiResponseObject response = new PncApiResponseObject();
 
         ServiceResult<String> result = certificateService.pncAuthorize(request, trackId);
 
+        //  Fail에는 Data를 숨기는 것이 기본적인 규칙이었지만, 특수한 케이스라고 이를 감안하더라도 필요하다고 요청이 들어와서 이곳에 한해서 데이터를 내림
+        AuthorizeData dataResult = new AuthorizeData();
+        dataResult.setEmaId(request.getEmaId());
+        dataResult.setBid("PI");
+        response.setData(Optional.of(dataResult));
         if (result.getSuccess()) {
             response.setResult(PncResponseResult.SUCCESS);
             response.setCode("200");

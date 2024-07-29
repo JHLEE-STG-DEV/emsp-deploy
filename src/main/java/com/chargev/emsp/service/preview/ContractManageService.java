@@ -745,6 +745,7 @@ public class ContractManageService {
         // 1. CRL과 대조해보기 -> 미리 다운로드해서 저장해놓은 CRL table에서, 조회할 ContarctCert의 시리얼넘버와 같은 것이
         // 있는지 확인한다.
         // (만약에 같은 것이 있다면 폐기된 인증서이므로 바로 검증 실패)
+        // => CRL의 타이밍은 어떻게 조절할 것인가?
 
         // 2. white-list와 대조 -> KEPCO가 가진 white-list가 우리 DB의 인증서 상태 (0,1,2)와 항상 동기화
         // 되어있다는 전제가 필요하다.

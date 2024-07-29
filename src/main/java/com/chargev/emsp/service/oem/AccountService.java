@@ -9,5 +9,5 @@ public interface AccountService {
     ServiceResult<EmspAccount> createAccount(OemAccount oemAccount);
     ServiceResult<EmspAccount> getAccountById(String emspAccountKey);
     ServiceResult<EmspAccount> modifyAccountById(String emspAccountKey, EmspAccountModify updatedAccount);
-    ServiceResult<Void> deleteAccountById(String emspAccountKey);
+    ServiceResult<String> deleteAccountById(String emspAccountKey);
 }

@@ -17,7 +17,6 @@ import com.chargev.emsp.repository.log.PncRequestLogRepository;
 import com.chargev.utils.IdHelper;
 import com.chargev.utils.JsonHelper;
 import com.chargev.utils.LocalFileManager;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -25,8 +24,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class PncLogServiceImpl implements PncLogService {
-
-    private final ObjectMapper objectMapper;
+private final JsonHelper jsonHelper;
     private final PncRequestLogRepository logRepository;
 
     private PncCheckpointLogRepository checkpointRepository;
@@ -107,7 +105,7 @@ public class PncLogServiceImpl implements PncLogService {
         if (!logOnDb && backupLogActive) {
             // 비상용 로컬저장
             try {
-                String logJson = objectMapper.writeValueAsString(log);
+                String logJson = jsonHelper.objectToString(log);
                 // String logJson = JsonHelper.objectToString(log);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(logKey));
             } catch (Exception ex) {
@@ -121,7 +119,7 @@ public class PncLogServiceImpl implements PncLogService {
         // request를 object로 저장함.
         if (objectLogActive && request != null) {
             try {
-                String requestJson = JsonHelper.objectToString(request);
+                String requestJson = jsonHelper.objectToString(request);
                 LocalFileManager.writeToFile(requestJson, objectLogPath.resolve(logKey + "_request"));
             } catch (Exception ex) {
 
@@ -164,7 +162,7 @@ public class PncLogServiceImpl implements PncLogService {
         if (!logOnDb && backupLogActive) {
             // 비상용 로컬저장
             try {
-                String logJson = objectMapper.writeValueAsString(log);
+                String logJson = jsonHelper.objectToString(log);
                 // String logJson = JsonHelper.objectToString(log);
                 LocalFileManager.writeToFile(logJson,
                         tmpLogPath.resolve(id + "_" + checkpointFlag.toLowerCase().replace(" ", "_")));
@@ -215,7 +213,7 @@ public class PncLogServiceImpl implements PncLogService {
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(id));
-                PncRequestLog logDeserialized = JsonHelper.stringToObject(logJson, PncRequestLog.class);
+                PncRequestLog logDeserialized = jsonHelper.stringToObject(logJson, PncRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -240,7 +238,7 @@ public class PncLogServiceImpl implements PncLogService {
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(id));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패
@@ -260,7 +258,7 @@ public class PncLogServiceImpl implements PncLogService {
         // response를 object로 저장함.
         if (objectLogActive && response != null) {
             try {
-                String responseJson = JsonHelper.objectToString(response);
+                String responseJson = jsonHelper.objectToString(response);
                 LocalFileManager.writeToFile(responseJson, objectLogPath.resolve(id + "_response"));
             } catch (Exception ex) {
 
@@ -292,7 +290,7 @@ public class PncLogServiceImpl implements PncLogService {
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(id));
-                PncRequestLog logDeserialized = JsonHelper.stringToObject(logJson, PncRequestLog.class);
+                PncRequestLog logDeserialized = jsonHelper.stringToObject(logJson, PncRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -319,7 +317,7 @@ public class PncLogServiceImpl implements PncLogService {
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(id));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패 

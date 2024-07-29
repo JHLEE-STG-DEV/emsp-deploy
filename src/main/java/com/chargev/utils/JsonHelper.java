@@ -1,20 +1,18 @@
 package com.chargev.utils;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
+import org.springframework.stereotype.Component;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class JsonHelper {
-    
-    private static final ObjectMapper mapper = new ObjectMapper();
-    static {
-        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-    }
-    
-    private JsonHelper() {
-        throw new IllegalStateException("Utility class");
-    }
+import lombok.RequiredArgsConstructor;
 
-    public static <T> String objectToString(T objectData) {
+@Component
+@RequiredArgsConstructor
+public class JsonHelper{
+    
+    private final ObjectMapper mapper;
+
+    public <T> String objectToString(T objectData) {
 
         String asString = "";
         try {
@@ -24,7 +22,7 @@ public class JsonHelper {
         }
         return asString;
     }
-    public static <T> T stringToObject(String jsonString, Class<T> classType) {
+    public <T> T stringToObject(String jsonString, Class<T> classType) {
         T object = null;
         try {
             object = mapper.readValue(jsonString, classType);

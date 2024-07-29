@@ -23,8 +23,11 @@ import com.chargev.emsp.model.dto.oem.EmspAccountModify;
 import com.chargev.emsp.model.dto.oem.EmspAccountRegistration;
 import com.chargev.emsp.model.dto.oem.EmspContract;
 import com.chargev.emsp.model.dto.oem.EmspContractRequest;
+import com.chargev.emsp.model.dto.oem.EmspDriverGroupInfo;
 import com.chargev.emsp.model.dto.oem.EmspRfidCard;
-import com.chargev.emsp.model.dto.oem.EmspRfidCardModifyRequest;
+import com.chargev.emsp.model.dto.oem.EmspRfidCardIssuedDetail;
+import com.chargev.emsp.model.dto.oem.EmspRfidCardOrder;
+import com.chargev.emsp.model.dto.oem.EmspRfidCardRegistration;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardRequest;
 import com.chargev.emsp.model.dto.response.ApiResponseObject;
 import com.chargev.emsp.model.dto.response.ApiResponseObjectList;
@@ -60,6 +63,7 @@ public class OemController {
     private final AccountService accountService;
     private final ContractService contractService;
     private final RfidService rfidService;
+    private final HttpServletRequest httpRequest;
 
     @PostMapping("/registrations")
     @Operation(summary = "1-1. eMSP 회원 등록", description = "OEM 회원 정보와 매칭되는 eMSP 회원 등록(생성)")
@@ -162,7 +166,7 @@ public class OemController {
         response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
         try {
-            ServiceResult<Void> result = accountService.deleteAccountById(emspAccountKey);
+            ServiceResult<String> result = accountService.deleteAccountById(emspAccountKey);
 
             if (result.getSuccess()) {
                 response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
@@ -245,10 +249,10 @@ public class OemController {
             }
         } catch (Exception e) {
             response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
-            response.setStatusMessage(e.toString());
+            response.setStatusMessage("서버 오류로 인한계약 생성 실패");
             response.setData(null);
             System.out.println(e.toString());
-        }
+        } 
 
         logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
@@ -259,13 +263,37 @@ public class OemController {
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
     @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789")
     public ApiResponseObject<EmspContract> patchContract(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
         @RequestBody EmspContract contract) {
-        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 단건의 정보를 변경한다.
+        // 계약 수정은 status 수정, package 수정, payment 수정 가능하다.
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
 
         ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
+        try {
+            ServiceResult<EmspContract> result = contractService.modifyContract(emspAccountKey, emspContractId, contract);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+                response.setData(null);
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            response.setData(null);
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
@@ -273,13 +301,34 @@ public class OemController {
     @Operation(summary = "2-3. 계약 해지(삭제)", description = "특정 회원의 특정 계약을 해지(삭제)한다")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
     @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789")
-    public ApiResponseObject<EmspContract> deleteContract(
+    public ApiResponseString deleteContract(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 단건을 해지(삭제)한다.
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
 
-        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
+        ApiResponseString response = new ApiResponseString();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
+        try {
+            ServiceResult<String> result = contractService.terminateContract(emspAccountKey, emspContractId);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
@@ -287,7 +336,7 @@ public class OemController {
     @Operation(summary = "2-4. 계약 목록 조회", description = "특정 회원의 계약 목록을 조회")
     @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789")
     public ApiResponseObjectList<EmspContract> getContracts(HttpServletRequest httpRequest, @PathVariable("emsp_account_key") String emspAccountKey) {
-        // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다.
+        // emsp_account_key로 특정되는 회원의 계약 목록을 조회한다. 1(Active) + 2(Locked) 모두 조회
         String requestUrl = httpRequest.getRequestURL().toString();
         String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
 
@@ -361,31 +410,77 @@ public class OemController {
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
     })
-    public ApiResponseObject<EmspContract> getDriverGroupByContract(
+    public ApiResponseObject<EmspDriverGroupInfo> getDriverGroupByContract(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 DriverGroup을 조회한다.
 
-        ApiResponseObject<EmspContract> response = new ApiResponseObject<>();
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
 
+        ApiResponseObject<EmspDriverGroupInfo> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+
+        try {
+            ServiceResult<EmspDriverGroupInfo> result = contractService.getDriverGroup(emspAccountKey, emspContractId);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+                response.setData(null);
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            response.setData(null);
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
     @PostMapping("/accounts/{emsp_account_key}/contracts/{emsp_contract_id}/rfids/orders")
-    @Operation(summary = "3-1. RFID 발급 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드를 생성한다")
+    @Operation(summary = "3-1. RFID 발급 요청", description = "특정 회원의 특정 계약에 속한 RFID 카드의 주문을 생성한다")
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
     })
-    public ApiResponseObject<EmspRfidCard> postRfids(
+    public ApiResponseObject<EmspRfidCardIssuedDetail> postRfids(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
         @RequestBody EmspRfidCardRequest request) {
-        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약에 RFID를 생성한다.
-        // CPO로 부터 RFID 유효성 확인하며, 
-        //이상이 없으면 정보를 저장하고 CPO로 RFID 사용을 알린다.
+        // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약에 RFID 주문을 추가한다.
+        // TODO : 우선 더미로 잡아둔다.
 
-        ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
+
+        ApiResponseObject<EmspRfidCardIssuedDetail> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+
+        EmspRfidCardIssuedDetail issuedDetail = new EmspRfidCardIssuedDetail();
+        issuedDetail.setIssuedId("");
+        issuedDetail.setIssuedStatus("Ordered");
+        issuedDetail.setContarctId(emspContractId);
+        issuedDetail.setRfidCardReuest(request);
+
+        EmspRfidCardOrder order = new EmspRfidCardOrder();
+        order.setOrderId("123456789");
+        order.setIssuedAt("2024-01-01T00:00:00.000Z");
+        issuedDetail.setOrder(order);
+        
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+        response.setData(issuedDetail);
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
 
         return response;
     }
@@ -397,14 +492,37 @@ public class OemController {
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
         @Parameter(name = "issued_id", description = "RFID Issued Id", example = "123456789"),
     })
-    public ApiResponseObject<EmspRfidCard> getRfidIssued(
+    public ApiResponseObject<EmspRfidCardIssuedDetail> getRfidIssued(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
         @PathVariable("issued_id") String issuedId,
         @RequestBody EmspRfidCardRequest request) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 계약 건 내에 특정 issued id로 생성 요청된 RFID 정보를 조회한다.
+        // TODO : 우선 더미로 잡아둔다.
 
-        ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
+
+        ApiResponseObject<EmspRfidCardIssuedDetail> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
+
+        EmspRfidCardIssuedDetail issuedDetail = new EmspRfidCardIssuedDetail();
+        issuedDetail.setIssuedId("");
+        issuedDetail.setIssuedStatus("Ordered");
+        issuedDetail.setContarctId(emspContractId);
+        issuedDetail.setRfidCardReuest(request);
+
+        EmspRfidCardOrder order = new EmspRfidCardOrder();
+        order.setOrderId("123456789");
+        order.setIssuedAt("2024-01-01T00:00:00.000Z");
+        issuedDetail.setOrder(order);
+        
+        response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+        response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+        response.setData(issuedDetail);
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
 
         return response;
     }
@@ -414,17 +532,39 @@ public class OemController {
     @Parameters({
         @Parameter(name = "emsp_account_key", description = "eMSP Account Key", example = "123456789"),
         @Parameter(name = "emsp_contract_id", description = "eMSP Contract Id", example = "123456789"),
-        @Parameter(name = "issued_id", description = "RFID Issued Id", example = "123456789"),
     })
     public ApiResponseObject<EmspRfidCard> patchRfidIssued(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
-        @PathVariable("issued_id") String issuedId,
-        @RequestBody EmspRfidCardRequest request) {
-        // api 확정 전
+        @RequestBody EmspRfidCardRegistration request) {
 
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
+    
         ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
+        try {
+            ServiceResult<EmspRfidCard> result = rfidService.registerRfid(emspAccountKey, emspContractId, request, trackId);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+                response.setData(null);
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            response.setData(null);
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
@@ -436,10 +576,11 @@ public class OemController {
         @Parameter(name = "card_id", description = "RFID Card Id", example = "123456789"),
     })
     public ApiResponseObject<EmspRfidCard> patchRfid(
+        HttpServletRequest httpRequest,
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId,
         @PathVariable("card_id") String cardId,
-        @RequestBody EmspRfidCardModifyRequest rfid_card) {
+        @RequestBody EmspRfidCard request) {
         // emsp_account_key, emsp_contract_id, card_id로 특정되는 RFID 단건의 정보를 수정한다.
         // eMSP RFID 분실신고/취소 요청한다.
         // 분실신고 요청은 정상 상태의 RFID에 신청 가능하다.
@@ -447,8 +588,32 @@ public class OemController {
         // 분실신고된 RFID로 충전 인증이 불가하다.
         // CPO로 분실신고/취소 정보를 전달해야 한다.
 
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
+    
         ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
+        try {
+            ServiceResult<EmspRfidCard> result = rfidService.modifyRfidStatus(emspAccountKey, emspContractId, request, trackId);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+                response.setData(null);
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            response.setData(null);
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
@@ -472,7 +637,7 @@ public class OemController {
         response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
         try {
-            ServiceResult<Void> result = rfidService.deleteRfidById(emspAccountKey, emspContractId, cardId);
+            ServiceResult<String> result = rfidService.deleteRfidById(emspAccountKey, emspContractId, cardId);
 
             if (result.getSuccess()) {
                 response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
@@ -505,9 +670,33 @@ public class OemController {
         @PathVariable("emsp_account_key") String emspAccountKey,
         @PathVariable("emsp_contract_id") String emspContractId) {
         // emsp_account_key 특정되는 회원 emsp_contract_id로 특정되는 RFID 목록을 조회한다.
-
+        
+        String requestUrl = httpRequest.getRequestURL().toString();
+        String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
+    
         ApiResponseObjectList<EmspRfidCard> response = new ApiResponseObjectList<>();
+        response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
+        try {
+            ServiceResult<List<EmspRfidCard>> result = rfidService.getRfids(emspAccountKey, emspContractId, trackId);
+
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
+            } else {
+                response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
+                response.setStatusMessage(result.getErrorMessage());
+                response.setData(null);
+            }
+        } catch (Exception e) {
+            response.setStatusCode(OcpiResponseStatusCode.SERVER_ERROR);
+            response.setStatusMessage(e.toString());
+            response.setData(null);
+            System.out.println(e.toString());
+        }
+
+        logService.controllerLogEnd(trackId, response.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), response.getStatusCode().toString());
         return response;
     }
 
@@ -528,29 +717,20 @@ public class OemController {
 
         String requestUrl = httpRequest.getRequestURL().toString();
         String trackId = logService.controllerLogStart(requestUrl, emspAccountKey);
-
+    
         ApiResponseObject<EmspRfidCard> response = new ApiResponseObject<>();
         response.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
         try {
-            // 계약을 먼저 조회
-            ServiceResult<EmspContract> contractResult = contractService.getContract(emspAccountKey, emspContractId);
+            ServiceResult<EmspRfidCard> result = rfidService.getRfid(emspAccountKey, emspContractId, cardId, trackId);
 
-            if (contractResult.getSuccess()) {
-                // 계약에서 RFID 카드 목록을 가져옴
-                EmspRfidCard rfidCard = contractResult.get().getRfidCard();
-                if(rfidCard.getCardId().equals(cardId) && rfidCard.getStatus().equals("Active")) {
-                    response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-                    response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
-                    response.setData(rfidCard);
-                } else {
-                    response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
-                    response.setStatusMessage("RFID 카드가 존재하지 않거나 상태가 유효하지 않습니다.");
-                    response.setData(null);
-                }
+            if (result.getSuccess()) {
+                response.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                response.setStatusMessage(OcpiResponseStatusCode.SUCCESS.toString());
+                response.setData(result.get());
             } else {
                 response.setStatusCode(OcpiResponseStatusCode.CLIENT_ERROR);
-                response.setStatusMessage(contractResult.getErrorMessage());
+                response.setStatusMessage(result.getErrorMessage());
                 response.setData(null);
             }
         } catch (Exception e) {

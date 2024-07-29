@@ -1,5 +1,7 @@
 package com.chargev.emsp.model.dto.ocpi;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -12,5 +14,6 @@ public class PriceComponent {
     @Schema(description = "Applicable VAT percentage for this tariff dimension. If omitted, no VAT is applicable. Not providing a VAT is different from 0% VAT, which would be a value of 0.0 here.")
     private Number vat;
     @Schema(description = "Minimum amount to be billed.")
-    private int step_size;
+    @JsonProperty("step_size")
+    private int stepSize;
 }

@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class PncController {
     private final CertificateService certificateService;
     private final PncLogService logService;
+    private final LogHelper logHelper;
     
 
     private static final Logger apiLogger = LoggerFactory.getLogger("API_LOGGER");
@@ -54,13 +55,13 @@ public class PncController {
     public KpipApiResponse suspension(@RequestBody PncReqBodyContractSuspension request) {
         String endpoint= "/pnc/provisioning/suspension";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
 
         String trackId = logService.pncLogStart("/pnc/provisioning/suspension", request);
 
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
         // OEM 프로비저닝 변경으로 생성된 기존 계약을 삭제(만료)처리해야 하는 상황을 KEPCO가 알려줄 때 호출함.
         // 들어온 body의 pcid에 해당하는 계약을 삭제(만료) 시키고 그에 따른 응답을 반환한다.
@@ -75,14 +76,14 @@ public class PncController {
             response.setResultCode("OK");
             response.setResultMsg("Success");
             if (apiLogger.isInfoEnabled()) {
-                apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "OK"));
+                apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "OK"));
             }
             logService.pncLogFinish(trackId, "OK");
         } else {
             response.setResultCode("FAIL");
             response.setResultMsg(result.getErrorMessage());
             if (apiLogger.isWarnEnabled()) {
-                apiLogger.warn(LogHelper.controllerResponseLog(endpoint, trackId, "FAIL"));
+                apiLogger.warn(logHelper.controllerResponseLog(endpoint, trackId, "FAIL"));
             }
             logService.pncLogFail(trackId, "FAIL", result.getErrorMessage());
         }
@@ -102,18 +103,18 @@ public class PncController {
     public PncApiResponse issueCert(@RequestBody PncReqBodyIssueCert request) {
         String endpoint= "/pnc/cert/issuance";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
         String trackId = logService.pncLogStart("/pnc/cert/issuance", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
         CompletableFuture<ServiceResult<String>> future = certificateService.issueCertificate(request, trackId);
         
         // 비동기 작업의 결과를 처리
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerBackgroundLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerBackgroundLog(endpoint, trackId));
         }
         future.thenAccept(result -> {
             if (result.getSuccess()) {
@@ -130,7 +131,7 @@ public class PncController {
 
         logService.pncLogFinish(trackId, "202");
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "202"));
+            apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "202"));
         }
         // 응답은 서비스와 무관하게 즉시 반환한다 (202 : 수신함)
         return createAsyncResponse();
@@ -148,18 +149,18 @@ public class PncController {
     public PncApiResponse revokeCert(@RequestBody PncReqBodyRevokeCert request) {
         String endpoint= "/pnc/cert/revoke";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
         String trackId = logService.pncLogStart("/pnc/cert/revoke", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
 
         CompletableFuture<ServiceResult<String>> future = certificateService.revokeCertificate(request, trackId);
 
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerBackgroundLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerBackgroundLog(endpoint, trackId));
         }
         // 비동기 작업의 결과를 처리
         future.thenAccept(result -> {
@@ -178,7 +179,7 @@ public class PncController {
         // 응답은 서비스와 무관하게 즉시 반환한다 (202 : 수신함)
         logService.pncLogFinish(trackId, "202");
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "202"));
+            apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "202"));
         }
         return createAsyncResponse();
     }
@@ -195,19 +196,19 @@ public class PncController {
     public PncApiResponse issueContract(@RequestBody PncReqBodyIssueContract request) {
         String endpoint= "/pnc/contract/issue";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
 
         String trackId = logService.pncLogStart("/pnc/contract/issue", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
         CompletableFuture<ServiceResult<String>> future = certificateService.issueContract(request, trackId);
 
         // 비동기 작업의 결과를 처리
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerBackgroundLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerBackgroundLog(endpoint, trackId));
         }
         future.thenAccept(result -> {
             if (result.getSuccess()) {
@@ -225,7 +226,7 @@ public class PncController {
         // 응답은 서비스와 무관하게 즉시 반환한다 (202 : 수신함)
         logService.pncLogFinish(trackId, "202");
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "202"));
+            apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "202"));
         }
         return createAsyncResponse();
     }
@@ -242,12 +243,12 @@ public class PncController {
     public PncApiResponse revokeContract(@RequestBody PncReqBodyRevokeContractCert request) {
         String endpoint= "/pnc/contract/revoke";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
 
         String trackId = logService.pncLogStart("/pnc/contract/revoke", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
 
@@ -256,7 +257,7 @@ public class PncController {
 
         // 비동기 작업의 결과를 처리
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerBackgroundLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerBackgroundLog(endpoint, trackId));
         }
         future.thenAccept(result -> {
             if (result.getSuccess()) {
@@ -273,7 +274,7 @@ public class PncController {
 
         // 응답은 서비스와 무관하게 즉시 반환한다 (202 : 수신함)
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "202"));
+            apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "202"));
         }
         logService.pncLogFinish(trackId, "202");
         return createAsyncResponse();
@@ -290,11 +291,11 @@ public class PncController {
     public PncApiResponseObject getContractInfo(@RequestBody PncReqBodyContractInfo request) {
         String endpoint= "/pnc/contract/info";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
         String trackId = logService.pncLogStart("/pnc/contract/info", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
 
@@ -315,10 +316,10 @@ public class PncController {
             response.setData(Optional.ofNullable(data));
             if (apiLogger.isInfoEnabled()) {
                 if(data == null){
-                    apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "200"));
+                    apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "200"));
          
                 }else{
-                    apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "200", data));
+                    apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "200", data));
          
                 }
             }
@@ -328,7 +329,7 @@ public class PncController {
             logService.pncLogFail(trackId, "500", result.getErrorMessage());
             response.setMessage("No matching member information found.");
             if (apiLogger.isWarnEnabled()) {
-                apiLogger.warn(LogHelper.controllerResponseLog(endpoint, trackId, "500"));
+                apiLogger.warn(logHelper.controllerResponseLog(endpoint, trackId, "500"));
             }
         }
 
@@ -350,11 +351,11 @@ public class PncController {
     public PncApiResponse pncAuthorize(@RequestBody PncReqBodyAuthorize request) {
         String endpoint= "/pnc/authorize";
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerEnterLog(endpoint));
+            apiLogger.info(logHelper.controllerEnterLog(endpoint));
         }
         String trackId = logService.pncLogStart("/pnc/authorize", request);
         if (apiLogger.isInfoEnabled()) {
-            apiLogger.info(LogHelper.controllerTrackLog(endpoint, trackId));
+            apiLogger.info(logHelper.controllerTrackLog(endpoint, trackId));
         }
 
 
@@ -372,7 +373,7 @@ public class PncController {
             response.setMessage("Success");
             logService.pncLogFinish(trackId, "200");
             if (apiLogger.isInfoEnabled()) {
-                apiLogger.info(LogHelper.controllerResponseLog(endpoint, trackId, "200"));
+                apiLogger.info(logHelper.controllerResponseLog(endpoint, trackId, "200"));
             }
         } else {
             response.setResult(PncResponseResult.FAIL);
@@ -380,7 +381,7 @@ public class PncController {
             response.setMessage(result.getErrorMessage());
             logService.pncLogFail(trackId, "500", result.getErrorMessage());
             if (apiLogger.isWarnEnabled()) {
-                apiLogger.warn(LogHelper.controllerResponseLog(endpoint, trackId, "500"));
+                apiLogger.warn(logHelper.controllerResponseLog(endpoint, trackId, "500"));
             }
         }
 

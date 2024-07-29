@@ -9,7 +9,8 @@ public enum ParkingType {
     PARKING_LOT("PARKING_LOT"),
     ON_DRIVEWAY("ON_DRIVEWAY"),
     ON_STREET("ON_STREET"),
-    UNDERGROUND_GARAGE("UNDERGROUND_GARAGE");
+    UNDERGROUND_GARAGE("UNDERGROUND_GARAGE"),
+    UNKNOWN("UNKNOWN");
 
     ParkingType(String value) {
         this.value = value;

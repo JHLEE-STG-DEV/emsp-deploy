@@ -8,7 +8,8 @@ public enum PowerType {
     AC_2_PHASE("AC_2_PHASE"),
     AC_2_PHASE_SPLIT("AC_2_PHASE_SPLIT"),
     AC_3_PHASE("AC_3_PHASE"),
-    DC("DC");
+    DC("DC"),
+    UNKNOWN("UNKNOWN");
 
     PowerType(String value) {
         this.value = value;

@@ -4,8 +4,8 @@ import lombok.Data;
 
 @Data
 public class CdrDimension {
-    @Schema(required=true, description = "CdrDimension의 유형입니다.")
+    @Schema(description = "CdrDimension의 유형입니다.")
     private CdrDimensionType type;
-    @Schema(required=true, description = "[CdrDimensionType]에 따라 측정되는 치수의 값입니다.")
+    @Schema(description = "[CdrDimensionType]에 따라 측정되는 치수의 값입니다.")
     private Number volume;
 }

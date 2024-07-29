@@ -292,9 +292,9 @@ public class CertificateConversionService {
     // CRL 디코딩
     public void decodeCRL(String base64CRL) {
         try {
-            // Base64 디코딩 (KEPCO에서 두 번 인코딩하여 보내므로 두 번 디코딩한다)
-
-            byte[] decodedCRL = java.util.Base64.getDecoder().decode(base64CRL);
+            // 헤더+개행+내용+개행+푸터 넣기
+            base64CRL = "-----BEGIN CRL-----\n" + base64CRL + "\n-----END CRL-----";
+            byte[] decodedCRL = base64CRL.getBytes("UTF-8");
 
             // PEM 데이터를 ByteArrayInputStream으로 변환
             ByteArrayInputStream bais = new ByteArrayInputStream(decodedCRL);
@@ -304,10 +304,19 @@ public class CertificateConversionService {
             bais.reset();
             X509CRL crl = (X509CRL) certFactory.generateCRL(bais);
             // CRL 정보 출력
-            System.out.println("Issuer: " + crl.getIssuerX500Principal());
-            System.out.println("This Update: " + crl.getThisUpdate());
-            System.out.println("Next Update: " + crl.getNextUpdate());
-            System.out.println("Revoked Certificates: " + crl.getRevokedCertificates());
+            // System.out.println("Issuer: " + crl.getIssuerX500Principal());
+            // System.out.println("This Update: " + crl.getThisUpdate());
+            // System.out.println("Next Update: " + crl.getNextUpdate());
+            // System.out.println("Revoked Certificates: " + crl.getRevokedCertificates());
+
+            // for(X509CRLEntry entry : crl.getRevokedCertificates()){
+            //     System.out.println("---------------------------");
+            //     System.out.println("Serial Number : " + entry.getSerialNumber());
+            //     System.out.println("Revocation Date : " + entry.getRevocationDate());
+            //     System.out.println("Revocation Reason : " + entry.getRevocationReason());
+
+
+            // }
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -320,5 +329,4 @@ public class CertificateConversionService {
         // Convert byte array to String using the appropriate Charset
         return new String(decodedBytes, StandardCharsets.UTF_8);
     }
-
 }

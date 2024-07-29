@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.chargev.emsp.model.dto.cpo.RfidVerifyResponse;
 import com.chargev.emsp.model.dto.ocpi.CdrForMb;
 import com.chargev.emsp.model.dto.ocpi.CdrStatistics;
 import com.chargev.emsp.model.dto.ocpi.CommandResponseForMb;
@@ -28,11 +29,18 @@ import com.chargev.emsp.model.dto.ocpi.SessionForMb;
 import com.chargev.emsp.model.dto.ocpi.StartSessionForMb;
 import com.chargev.emsp.model.dto.ocpi.StopSession;
 import com.chargev.emsp.model.dto.ocpi.Tariff;
+import com.chargev.emsp.model.dto.pnc.OcspResponse;
+import com.chargev.emsp.model.dto.pnc.PncReqBodyOCSPMessage;
 import com.chargev.emsp.model.dto.response.ApiResponseObject;
 import com.chargev.emsp.model.dto.response.ApiResponseObjectList;
 import com.chargev.emsp.model.dto.response.OcpiResponseStatusCode;
+import com.chargev.emsp.model.dto.response.PncApiResponseObject;
+import com.chargev.emsp.model.dto.response.PncResponseResult;
+import com.chargev.emsp.service.ServiceResult;
 import com.chargev.emsp.service.dummy.DummyDataService;
 import com.chargev.emsp.service.formatter.DateTimeFormatterService;
+import com.chargev.emsp.service.log.ControllerLogService;
+import com.chargev.emsp.service.cpo.CpoService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -40,8 +48,10 @@ import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @Slf4j
@@ -51,6 +61,9 @@ import lombok.extern.slf4j.Slf4j;
 public class OcpiController {
     private final DateTimeFormatterService dateTimeFormatterService;
     private final DummyDataService dummyDataService;
+    private final ControllerLogService logService;
+    private final HttpServletRequest httpRequest;
+    private final CpoService cpoService;
 
     // #region LOCATIONS
 
@@ -89,7 +102,7 @@ public class OcpiController {
             // Filter the locations by last_updated date
             List<Location> filteredLocations = locations.stream()
             .filter(location -> {
-                ZonedDateTime lastUpdated = ZonedDateTime.parse(location.getLast_updated());
+                ZonedDateTime lastUpdated = ZonedDateTime.parse(location.getLastUpdated());
                 boolean isAfterFromDate = fromDate == null || lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate);
                 boolean isBeforeToDate = toDate == null || lastUpdated.isBefore(toDate);
                 return isAfterFromDate && isBeforeToDate;
@@ -296,7 +309,7 @@ public class OcpiController {
 
             List<CdrForMb> filteredCdrs = cdrs.stream()
                     .filter(cdr -> {
-                        ZonedDateTime lastUpdated = ZonedDateTime.parse(cdr.getLast_updated());
+                        ZonedDateTime lastUpdated = ZonedDateTime.parse(cdr.getLastUpdated());
                         boolean isAfterFromDate = fromDate == null || lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate);
                         boolean isBeforeToDate = toDate == null || lastUpdated.isBefore(toDate);
                         return isAfterFromDate && isBeforeToDate;
@@ -390,11 +403,11 @@ public class OcpiController {
             .filter(cdr -> {
                 boolean dateMatches = true;
                 if (fromDate != null || toDate != null) {
-                    ZonedDateTime lastUpdated = ZonedDateTime.parse(cdr.getLast_updated());
+                    ZonedDateTime lastUpdated = ZonedDateTime.parse(cdr.getLastUpdated());
                     dateMatches = (fromDate == null || lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate)) &&
                                 (toDate == null || lastUpdated.isBefore(toDate));
                 }
-                boolean contractMatches = contract_ids == null || contract_ids.isEmpty() || contract_ids.contains(cdr.getCdr_token().getContract_id());
+                boolean contractMatches = contract_ids == null || contract_ids.isEmpty() || contract_ids.contains(cdr.getCdrToken().getContractId());
                 return dateMatches && contractMatches;
             })
             .collect(Collectors.toList());
@@ -404,75 +417,75 @@ public class OcpiController {
         int end = Math.min(offset + limit, filteredCdrs.size());
         List<CdrForMb> paginatedCdrs = filteredCdrs.subList(start, end);
 
-        double totalEnergy = paginatedCdrs.stream().mapToDouble(cdr -> cdr.getTotal_energy().doubleValue()).sum();
-        double totalTime = paginatedCdrs.stream().mapToDouble(cdr -> cdr.getTotal_time().doubleValue()).sum();
+        double totalEnergy = paginatedCdrs.stream().mapToDouble(cdr -> cdr.getTotalEnergy().doubleValue()).sum();
+        double totalTime = paginatedCdrs.stream().mapToDouble(cdr -> cdr.getTotalTime().doubleValue()).sum();
         double totalCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_cost().getExcl_vat().doubleValue()).sum();
+            .mapToDouble(cdr -> cdr.getTotalCost().getExclVat().doubleValue()).sum();
         double totalCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_cost().getIncl_vat().doubleValue()).sum();
+            .mapToDouble(cdr -> cdr.getTotalCost().getInclVat().doubleValue()).sum();
     
         double totalFixedCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_fixed_cost() != null ? cdr.getTotal_fixed_cost().getExcl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalFixedCost() != null ? cdr.getTotalFixedCost().getExclVat().doubleValue() : 0).sum();
         double totalFixedCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_fixed_cost() != null ? cdr.getTotal_fixed_cost().getIncl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalFixedCost() != null ? cdr.getTotalFixedCost().getInclVat().doubleValue() : 0).sum();
     
         double totalEnergyCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_energy_cost() != null ? cdr.getTotal_energy_cost().getExcl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalEnergyCost() != null ? cdr.getTotalEnergyCost().getExclVat().doubleValue() : 0).sum();
         double totalEnergyCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_energy_cost() != null ? cdr.getTotal_energy_cost().getIncl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalEnergyCost() != null ? cdr.getTotalEnergyCost().getInclVat().doubleValue() : 0).sum();
     
         double totalTimeCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_time_cost() != null ? cdr.getTotal_time_cost().getExcl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalTimeCost() != null ? cdr.getTotalTimeCost().getExclVat().doubleValue() : 0).sum();
         double totalTimeCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_time_cost() != null ? cdr.getTotal_time_cost().getIncl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalTimeCost() != null ? cdr.getTotalTimeCost().getInclVat().doubleValue() : 0).sum();
     
-        int totalParkingTime = paginatedCdrs.stream().mapToInt(CdrForMb::getTotal_parking_time).sum();
+        int totalParkingTime = paginatedCdrs.stream().mapToInt(CdrForMb::getTotalParkingTime).sum();
     
         double totalParkingCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_parking_cost() != null ? cdr.getTotal_parking_cost().getExcl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalParkingCost() != null ? cdr.getTotalParkingCost().getExclVat().doubleValue() : 0).sum();
         double totalParkingCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_parking_cost() != null ? cdr.getTotal_parking_cost().getIncl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalParkingCost() != null ? cdr.getTotalParkingCost().getInclVat().doubleValue() : 0).sum();
     
         double totalReservationCostExclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_reservation_cost() != null ? cdr.getTotal_reservation_cost().getExcl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalReservationCost() != null ? cdr.getTotalReservationCost().getExclVat().doubleValue() : 0).sum();
         double totalReservationCostInclVat = paginatedCdrs.stream()
-            .mapToDouble(cdr -> cdr.getTotal_reservation_cost() != null ? cdr.getTotal_reservation_cost().getIncl_vat().doubleValue() : 0).sum();
+            .mapToDouble(cdr -> cdr.getTotalReservationCost() != null ? cdr.getTotalReservationCost().getInclVat().doubleValue() : 0).sum();
     
         Price totalCost = new Price();
-        totalCost.setExcl_vat(totalCostExclVat);
-        totalCost.setIncl_vat(totalCostInclVat);
+        totalCost.setExclVat(totalCostExclVat);
+        totalCost.setInclVat(totalCostInclVat);
     
         Price totalFixedCost = new Price();
-        totalFixedCost.setExcl_vat(totalFixedCostExclVat);
-        totalFixedCost.setIncl_vat(totalFixedCostInclVat);
+        totalFixedCost.setExclVat(totalFixedCostExclVat);
+        totalFixedCost.setInclVat(totalFixedCostInclVat);
     
         Price totalEnergyCost = new Price();
-        totalEnergyCost.setExcl_vat(totalEnergyCostExclVat);
-        totalEnergyCost.setIncl_vat(totalEnergyCostInclVat);
+        totalEnergyCost.setExclVat(totalEnergyCostExclVat);
+        totalEnergyCost.setInclVat(totalEnergyCostInclVat);
     
         Price totalTimeCost = new Price();
-        totalTimeCost.setExcl_vat(totalTimeCostExclVat);
-        totalTimeCost.setIncl_vat(totalTimeCostInclVat);
+        totalTimeCost.setExclVat(totalTimeCostExclVat);
+        totalTimeCost.setInclVat(totalTimeCostInclVat);
     
         Price totalParkingCost = new Price();
-        totalParkingCost.setExcl_vat(totalParkingCostExclVat);
-        totalParkingCost.setIncl_vat(totalParkingCostInclVat);
+        totalParkingCost.setExclVat(totalParkingCostExclVat);
+        totalParkingCost.setInclVat(totalParkingCostInclVat);
     
         Price totalReservationCost = new Price();
-        totalReservationCost.setExcl_vat(totalReservationCostExclVat);
-        totalReservationCost.setIncl_vat(totalReservationCostInclVat);
+        totalReservationCost.setExclVat(totalReservationCostExclVat);
+        totalReservationCost.setInclVat(totalReservationCostInclVat);
     
         CdrStatistics statistics = new CdrStatistics();
         statistics.setCurrency("KRW");
-        statistics.setTotal_cost(totalCost);
-        statistics.setTotal_fixed_cost(totalFixedCost);
-        statistics.setTotal_energy(totalEnergy);
-        statistics.setTotal_energy_cost(totalEnergyCost);
-        statistics.setTotal_time(totalTime);
-        statistics.setTotal_time_cost(totalTimeCost);
-        statistics.setTotal_parking_time(totalParkingTime);
-        statistics.setTotal_parking_cost(totalParkingCost);
-        statistics.setTotal_reservation_cost(totalReservationCost);
+        statistics.setTotalCost(totalCost);
+        statistics.setTotalFixedCost(totalFixedCost);
+        statistics.setTotalEnergy(totalEnergy);
+        statistics.setTotalEnergyCost(totalEnergyCost);
+        statistics.setTotalTime(totalTime);
+        statistics.setTotalTimeCost(totalTimeCost);
+        statistics.setTotalParkingTime(totalParkingTime);
+        statistics.setTotalParkingCost(totalParkingCost);
+        statistics.setTotalReservationCost(totalReservationCost);
     
         result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
         result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
@@ -520,7 +533,7 @@ public class OcpiController {
         // Filter the tariffs by last_updated date
         List<Tariff> filteredTariffs = tariffs.stream()
                 .filter(tariff -> {
-                    ZonedDateTime lastUpdated = ZonedDateTime.parse(tariff.getLast_updated());
+                    ZonedDateTime lastUpdated = ZonedDateTime.parse(tariff.getLastUpdated());
                     boolean isAfterFromDate = fromDate == null || lastUpdated.isAfter(fromDate) || lastUpdated.isEqual(fromDate);
                     boolean isBeforeToDate = toDate == null || lastUpdated.isBefore(toDate);
                     return isAfterFromDate && isBeforeToDate;
@@ -540,10 +553,10 @@ public class OcpiController {
         return result;
     }
 
-    @GetMapping("/tariffs/{tariff_id}")
+    @GetMapping("/tariffs/{tariffId}")
     @Operation(summary = "4-2. tariffs - get tariff", description = "tariff_id로 특정되는 하나의 tariff를 가져온다.")
     public ApiResponseObject<Tariff> getTariff(
-        @PathVariable @Parameter(description = "unique tariff id from emsp", example = "ABC10334908") String tariff_id) {
+        @PathVariable @Parameter(description = "unique tariff id from emsp", example = "ABC10334908") String tariffId) {
 
         ApiResponseObject<Tariff> result = new ApiResponseObject<>();
 
@@ -552,7 +565,7 @@ public class OcpiController {
 
         // Find the tariff by ID
         Optional<Tariff> tariffOpt = tariffs.stream()
-                .filter(tariff -> tariff.getId().equals(tariff_id))
+                .filter(tariff -> tariff.getId().equals(tariffId))
                 .findFirst();
 
         result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
@@ -575,53 +588,98 @@ public class OcpiController {
 
     @PostMapping("/commands/START_SESSION")
     @Operation(summary = "5-1. commands - start session", description = "CPO에 원격 충전 시작 명령을 전송")
-    public ApiResponseObject<CommandResponseForMb> startSession(@RequestBody StartSessionForMb request) {
+    public ApiResponseObject<CommandResponseForMb> startSession(HttpServletRequest httpRequest, @RequestBody StartSessionForMb request) {
+
+        // 요청 URL 가져오기
+        String requestUrl = httpRequest.getRequestURL().toString();
+
+        String trackId = logService.controllerLogStart(requestUrl, request);
 
         ApiResponseObject<CommandResponseForMb> result = new ApiResponseObject<>();
         CommandResponseForMb resultData = new CommandResponseForMb();
 
         result.setTimestamp(dateTimeFormatterService.formatToCustomStyle(ZonedDateTime.now(ZoneId.of("UTC"))));
 
-        String emspContractId = request.getEmsp_contract_id();
-        String evseUid = request.getEvse_uid();
-        String locationId = request.getLocation_id();
-        String connectorId = request.getConnector_id();
+        String emspContractId = request.getEmspContractId();
+        String evseUid = request.getEvseUid();
+        String locationId = request.getLocationId();
+        String connectorId = request.getConnectorId();
 
-        boolean isValidContractId = emspContractId.equals("KRCEVAA1234567");
-        boolean isValidEvseUid = evseUid.equals("PI-200006-2111");
-        boolean isValidLocationId = locationId.equals("PI-200006");
+        try {
+            ServiceResult<String> serviceResult = cpoService.validateContract(emspContractId, trackId);
 
-        if (isValidContractId && isValidEvseUid && isValidLocationId) {
-            // 모두 성공
-            resultData.setResult(CommandResponseType.ACCEPTED);
-            resultData.setLocation_id("PI-200006");
-            resultData.setEvse_uid("PI-200006-2111");
-            if (connectorId != null) {
-                resultData.setConnector_id(connectorId);
-            }
-            result.setData(resultData);
-            result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
-            result.setStatusMessage("Request received, processing initiated.");
-        } else {
-            // 실패 처리
-            if (!isValidContractId) {
-                resultData.setResult(CommandResponseType.UNKNOWN_SESSION);
-                result.setStatusCode(OcpiResponseStatusCode.UNKNOWN_EMSP_CONTRACT_ID);
-                result.setStatusMessage("Failure: Invalid eMSP Contract ID.");
-            } else if (!isValidEvseUid || !isValidLocationId) {
-                resultData.setResult(CommandResponseType.REJECTED);
-                result.setStatusCode(OcpiResponseStatusCode.ID_MISMATCH);
-                result.setStatusMessage("Failure: Invalid EVSE or Location ID.");
+            if (serviceResult.getSuccess()) {
+                resultData.setResult(CommandResponseType.ACCEPTED);
+                resultData.setLocationId(locationId);
+                resultData.setEvseUid(evseUid);
+                if (connectorId != null) {
+                    resultData.setConnectorId(connectorId);
+                }
+                result.setData(resultData);
+                result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
+                result.setStatusMessage("Request received, processing initiated.");
             } else {
-                resultData.setResult(CommandResponseType.NOT_SUPPORTED);
-                result.setStatusCode(OcpiResponseStatusCode.INVALID_PARAMETER);
-                result.setStatusMessage("Failure: Unknown error.");
+                resultData.setResult(CommandResponseType.UNKNOWN_SESSION);
+                resultData.setLocationId(locationId);
+                resultData.setEvseUid(evseUid);
+                if (connectorId != null) {
+                    resultData.setConnectorId(connectorId);
+                }
+                result.setStatusCode(OcpiResponseStatusCode.UNKNOWN_EMSP_CONTRACT_ID);
+                result.setStatusMessage(serviceResult.getErrorMessage());
             }
+        } catch (Exception e) {
+            resultData.setResult(CommandResponseType.NOT_SUPPORTED);
+            resultData.setLocationId(locationId);
+            resultData.setEvseUid(evseUid);
+            if (connectorId != null) {
+                resultData.setConnectorId(connectorId);
+            }
+            result.setStatusCode(OcpiResponseStatusCode.INVALID_PARAMETER);
+            result.setStatusMessage("Failure: Unknown error.");
+            System.out.println(e.toString());
         }
+
+        logService.controllerLogEnd(trackId, result.getStatusCode().equals(OcpiResponseStatusCode.SUCCESS), result.getStatusCode().toString(), result.getStatusMessage());
 
         result.setData(resultData);
         return result;
     }
+
+
+    //     @PostMapping("/cert/ocsp-response-msg")
+    // @Operation(summary = "1-3. OCSP 메시지 수신", description = """
+    //         EVSE(CSMS) -> **MSP -> eMSP** -> ChargLink -> eMSP -> MSP -> EVSE(CSMS) <br><br>
+    //         ChargLink : /cert/ocsp-response-msg 으로 OCSP 응답 메시지 요청 <br><br>
+    //         응답으로 수신한 ocspResMessage를 MSP로 다시 보내준다.
+    //         """)
+    // public PncApiResponseObject getOcspResponseMessage(HttpServletRequest httpRequest, @RequestBody PncReqBodyOCSPMessage request) {
+
+    //     // 요청 URL 가져오기
+    //     String requestUrl = httpRequest.getRequestURL().toString();
+
+    //     String trackId = logService.controllerLogStart(requestUrl, request);
+
+    //     ServiceResult<OcspResponse> serviceResult = certificateService.ocspCertCheck(request, trackId);
+
+    //     PncApiResponseObject response = new PncApiResponseObject();
+    //     if (serviceResult.isFail()) {
+    //         response.setCode(Integer.toString(serviceResult.getErrorCode()));
+    //         response.setMessage(serviceResult.getErrorMessage());
+    //         response.setResult(PncResponseResult.FAIL);
+    //     } else {
+    //         response.setCode("200");
+    //         response.setMessage("OK");
+
+    //         response.setResult(PncResponseResult.SUCCESS);
+
+    //         response.setData(Optional.ofNullable(serviceResult.get()));
+    //     }
+
+
+    //    logService.controllerLogEnd(trackId, serviceResult.getSuccess(), response.getCode(), response.getData().orElse(null));
+    //    return response;
+    // }
 
     @PostMapping("/commands/STOP_SESSION")
     @Operation(summary = "5-2. commands - stop session", description = "CPO에 원격 충전 종료 명령을 전송")
@@ -631,8 +689,8 @@ public class OcpiController {
         CommandResponseForMb resultData = new CommandResponseForMb();
 
         resultData.setResult(CommandResponseType.ACCEPTED);
-        resultData.setLocation_id("PI-200006");
-        resultData.setEvse_uid("PI-200006-2111");
+        resultData.setLocationId("PI-200006");
+        resultData.setEvseUid("PI-200006-2111");
         result.setData(resultData);
         result.setStatusCode(OcpiResponseStatusCode.SUCCESS);
         result.setStatusMessage("Request received, processing initiated.");

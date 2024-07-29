@@ -30,6 +30,7 @@ public class KpipLogServiceImpl implements KpipLogService{
     private Path objectLogPath;
 
     private final KpipRequsetLogRepository logRepository;
+    private final JsonHelper jsonHelper;
 
     private static final Logger logger = LoggerFactory.getLogger(KpipLogServiceImpl.class);
 
@@ -102,7 +103,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         if (!logOnDb && backupLogActive) {
             // 비상용 로컬저장
             try {
-                String logJson = JsonHelper.objectToString(log);
+                String logJson = jsonHelper.objectToString(log);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(logKey));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패
@@ -115,7 +116,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         // request를 object로 저장함.
         if (objectLogActive && request != null) {
             try {
-                String requestJson = JsonHelper.objectToString(request);
+                String requestJson = jsonHelper.objectToString(request);
                 LocalFileManager.writeToFile(requestJson, objectLogPath.resolve(logKey + "_request"));
             } catch (Exception ex) {
 
@@ -147,7 +148,7 @@ public class KpipLogServiceImpl implements KpipLogService{
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(id));
-                KpipRequestLog logDeserialized = JsonHelper.stringToObject(logJson, KpipRequestLog.class);
+                KpipRequestLog logDeserialized = jsonHelper.stringToObject(logJson, KpipRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -172,7 +173,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(id));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패
@@ -192,7 +193,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         // response를 object로 저장함.
         if (objectLogActive && response != null) {
             try {
-                String responseJson = JsonHelper.objectToString(response);
+                String responseJson = jsonHelper.objectToString(response);
                 LocalFileManager.writeToFile(responseJson, objectLogPath.resolve(id + "_response"));
             } catch (Exception ex) {
 
@@ -224,7 +225,7 @@ public class KpipLogServiceImpl implements KpipLogService{
             // 비상용 로그가 있는지 확인
             try {
                 String logJson = LocalFileManager.readFromFile(tmpLogPath.resolve(id));
-                KpipRequestLog logDeserialized = JsonHelper.stringToObject(logJson, KpipRequestLog.class);
+                KpipRequestLog logDeserialized = jsonHelper.stringToObject(logJson, KpipRequestLog.class);
                 if (logDeserialized != null) {
                     log = Optional.of(logDeserialized);
                     isBackupData = true;
@@ -251,7 +252,7 @@ public class KpipLogServiceImpl implements KpipLogService{
         // 저장
         if (isBackupData) {
             try {
-                String logJson = JsonHelper.objectToString(logEntity);
+                String logJson = jsonHelper.objectToString(logEntity);
                 LocalFileManager.writeToFile(logJson, tmpLogPath.resolve(id));
             } catch (Exception ex) {
                 // 여기서도 안되면 그냥 실패

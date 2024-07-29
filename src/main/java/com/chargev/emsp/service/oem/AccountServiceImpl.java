@@ -1,46 +1,37 @@
 package com.chargev.emsp.service.oem;
 
-import java.text.SimpleDateFormat;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.chargev.emsp.entity.oem.Account;
-import com.chargev.emsp.entity.oem.OemContract;
-import com.chargev.emsp.entity.oem.RFID;
+import com.chargev.emsp.entity.oem.EmspAccountEntity;
+import com.chargev.emsp.entity.oem.EmspContractEntity;
 import com.chargev.emsp.model.dto.oem.EmspAccount;
 import com.chargev.emsp.model.dto.oem.EmspAccountModify;
 import com.chargev.emsp.model.dto.oem.EmspContract;
-import com.chargev.emsp.model.dto.oem.EmspRfidCard;
-import com.chargev.emsp.model.dto.oem.EmspServicePackage;
 import com.chargev.emsp.model.dto.oem.OemAccount;
 import com.chargev.emsp.model.dto.oem.OemAccountAddress;
-import com.chargev.emsp.model.dto.oem.OemPaymentInfo;
-import com.chargev.emsp.model.dto.oem.OemVehicle;
-import com.chargev.emsp.repository.oem.AccountRepository;
-import com.chargev.emsp.repository.oem.OemContractRepository;
-import com.chargev.emsp.repository.oem.RFIDRepository;
+import com.chargev.emsp.repository.oem.EmspAccountRepository;
+import com.chargev.emsp.repository.oem.EmspContractRepository;
+import com.chargev.emsp.repository.oem.EmspRfidRepository;
 import com.chargev.emsp.service.ServiceResult;
 
-@Service
-public class AccountServiceImpl implements AccountService {
-    private final AccountRepository accountRepository;
-    private final OemContractRepository contractRepository;
-    private final RFIDRepository rfidRepository;
+import lombok.RequiredArgsConstructor;
 
-    public AccountServiceImpl(AccountRepository accountRepository, OemContractRepository contractRepository, RFIDRepository rfidRepository) {
-        this.accountRepository = accountRepository;
-        this.contractRepository = contractRepository;
-        this.rfidRepository = rfidRepository;
-    }
+@Service
+@RequiredArgsConstructor
+public class AccountServiceImpl implements AccountService {
+    private final EmspAccountRepository emspAccountRepository;
+    private final EmspContractRepository emspContractRepository;
+    private final EmspRfidRepository emspRfidRepository;
+    private final ContractService contractService;
 
     @Override
     public boolean isCiamIdExists(String ciamId) {
-        return accountRepository.existsByCiamId(ciamId);
+        return emspAccountRepository.existsByCiamId(ciamId);
     }
 
     @Override
@@ -48,13 +39,13 @@ public class AccountServiceImpl implements AccountService {
     public ServiceResult<EmspAccount> createAccount(OemAccount oemAccount) throws IllegalArgumentException {
         ServiceResult<EmspAccount> result = new ServiceResult<>();
 
-        Optional<Account> existingAccountOpt = accountRepository.findByCiamId(oemAccount.getCiamId());
+        Optional<EmspAccountEntity> existingAccountOpt = emspAccountRepository.findByCiamId(oemAccount.getCiamId());
         if (existingAccountOpt.isPresent() && existingAccountOpt.get().getAccountStatus() == 1) {
             throw new IllegalArgumentException("이미 가입된 ME 회원입니다.");
         }
 
         OemAccountAddress address = oemAccount.getAddress();
-        Account account = new Account();
+        EmspAccountEntity account = new EmspAccountEntity();
 
         // EMSP_ACCOUNT_KEY를 GUID로 생성
         account.setEmspAccountKey(UUID.randomUUID().toString().replace("-", ""));
@@ -70,14 +61,14 @@ public class AccountServiceImpl implements AccountService {
         account.setCity(address.getCity());
         account.setCountry(address.getCountry());
 
-        account = accountRepository.save(account);
+        account = emspAccountRepository.save(account);
 
         // Create the EmspAccount DTO for response
         EmspAccount emspAccount = new EmspAccount();
         OemAccountAddress emspAddress = new OemAccountAddress();
 
         emspAccount.setEmspAccountKey(account.getEmspAccountKey());
-        emspAccount.setAccountStatus(account.getAccountStatus() == 1 ? "Active" : "Inactive");
+        emspAccount.setAccountStatus("Active");
         emspAccount.setName(account.getName());
         emspAccount.setEmail(account.getEmail());
         emspAccount.setMobileNumber(account.getMobileNumber());
@@ -99,16 +90,16 @@ public class AccountServiceImpl implements AccountService {
     public ServiceResult<EmspAccount> getAccountById(String emspAccountKey) {
         ServiceResult<EmspAccount> result = new ServiceResult<>();
         // account와 함께 status가 1인 경우만 조회
-        Optional<Account> accountOpt = accountRepository.findByEmspAccountKeyAndAccountStatus(emspAccountKey, 1);
+        Optional<EmspAccountEntity> accountOpt = emspAccountRepository.findByEmspAccountKeyAndAccountStatus(emspAccountKey, 1);
         if (!accountOpt.isPresent()) {
             result.fail(404, "계정을 찾을 수 없습니다.");
             return result;
         }
 
-        Account account = accountOpt.get();
+        EmspAccountEntity account = accountOpt.get();
         EmspAccount emspAccount = new EmspAccount();
         emspAccount.setEmspAccountKey(account.getEmspAccountKey());
-        emspAccount.setAccountStatus(account.getAccountStatus() == 1 ? "Active" : "Inactive");
+        emspAccount.setAccountStatus("Active");
         emspAccount.setName(account.getName());
         emspAccount.setEmail(account.getEmail());
         emspAccount.setMobileNumber(account.getMobileNumber());
@@ -121,48 +112,9 @@ public class AccountServiceImpl implements AccountService {
         emspAddress.setCountry(account.getCountry());
         emspAccount.setAddress(emspAddress);
 
-        // 계약 정보 조회
-        List<OemContract> contracts = contractRepository.findByAccount(account);
-        List<EmspContract> emspContracts = contracts.stream().map(contract -> {
-            EmspContract emspContract = new EmspContract();
-            emspContract.setContractId(String.valueOf(contract.getContractId()));
-            emspContract.setContractStatus(contract.getContractStatus() == 1 ? "Active" : "Inactive");
-            emspContract.setContractStartDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getContractStartDate()));
-            emspContract.setContractEndDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPackageExpirationDate()));
-
-            OemVehicle vehicle = new OemVehicle();
-            vehicle.setVin(contract.getVin());
-            vehicle.setVehicleType(contract.getVehicleType());
-            vehicle.setModelName(contract.getModeName());
-            emspContract.setVehicle(vehicle);
-
-            EmspServicePackage servicePackageDTO = new EmspServicePackage();
-            servicePackageDTO.setId(contract.getPackageId());
-            servicePackageDTO.setName(contract.getPackageName());
-            servicePackageDTO.setExpirationDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPackageExpirationDate()));
-            emspContract.setServicePackage(servicePackageDTO);
-
-            OemPaymentInfo paymentInfo = new OemPaymentInfo();
-            paymentInfo.setAssetId(contract.getPaymentAssetId());
-            paymentInfo.setExpirationDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPaymentExpirationDate()));
-            emspContract.setPayment(paymentInfo);
-
-            // RFID 정보 조회
-            List<RFID> rfids = rfidRepository.findByOemContractContractIdAndStatus(contract.getContractId(), 1);
-            if (!rfids.isEmpty()) {
-                RFID rfid = rfids.get(0); // 상태가 1인 첫 번째 RFID 가져오기
-                EmspRfidCard emspRfidCard = new EmspRfidCard();
-                emspRfidCard.setCardId(rfid.getId());
-                emspRfidCard.setCardNumber(rfid.getRfNum());
-                emspRfidCard.setStatus(rfid.getStatus() == 1 ? "Active" : "Inactive");
-                emspRfidCard.setIssuedAt(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(rfid.getIssuedAt()));
-                emspContract.setRfidCard(emspRfidCard);
-            }
-
-            return emspContract;
-        }).collect(Collectors.toList());
-
-        emspAccount.setContracts(emspContracts);
+        // 계약 가져오기
+        ServiceResult<List<EmspContract>> contractResult = contractService.getContractsByAccountKey(emspAccountKey);
+        emspAccount.setContracts(contractResult.get());
 
         result.succeed(emspAccount);
         return result;
@@ -173,14 +125,14 @@ public class AccountServiceImpl implements AccountService {
     @Transactional(readOnly = true)
     public ServiceResult<EmspAccount> modifyAccountById(String emspAccountKey, EmspAccountModify newInfo) {
         ServiceResult<EmspAccount> result = new ServiceResult<>();
-        Optional<Account> accountOpt = accountRepository.findById(emspAccountKey);
+        Optional<EmspAccountEntity> accountOpt = emspAccountRepository.findById(emspAccountKey);
         if (!accountOpt.isPresent()) {
             result.fail(404, "계정을 찾을 수 없습니다.");
             return result;
         }
 
         // 유효성 검증 및 업데이트 로직
-        Account existingAccount = accountOpt.get();
+        EmspAccountEntity existingAccount = accountOpt.get();
         if (existingAccount == null) {
             result.fail(404, "계정을 찾을 수 없습니다.");
             return result;
@@ -214,7 +166,7 @@ public class AccountServiceImpl implements AccountService {
             }
         }
 
-        Account updatedAccount = accountRepository.save(existingAccount);
+        EmspAccountEntity updatedAccount = emspAccountRepository.save(existingAccount);
 
         EmspAccount emspAccount = new EmspAccount();
         emspAccount.setEmspAccountKey(updatedAccount.getEmspAccountKey());
@@ -231,48 +183,9 @@ public class AccountServiceImpl implements AccountService {
         emspAddress.setCountry(updatedAccount.getCountry());
         emspAccount.setAddress(emspAddress);
 
-        // 계약 정보 조회
-        List<OemContract> contracts = contractRepository.findByAccount(updatedAccount);
-        List<EmspContract> emspContracts = contracts.stream().map(contract -> {
-            EmspContract emspContract = new EmspContract();
-            emspContract.setContractId(String.valueOf(contract.getContractId()));
-            emspContract.setContractStatus(contract.getContractStatus() == 1 ? "Active" : "Inactive");
-            emspContract.setContractStartDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getContractStartDate()));
-            emspContract.setContractEndDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPackageExpirationDate()));
-
-            OemVehicle vehicle = new OemVehicle();
-            vehicle.setVin(contract.getVin());
-            vehicle.setVehicleType(contract.getVehicleType());
-            vehicle.setModelName(contract.getModeName());
-            emspContract.setVehicle(vehicle);
-
-            EmspServicePackage servicePackageDTO = new EmspServicePackage();
-            servicePackageDTO.setId(contract.getPackageId());
-            servicePackageDTO.setName(contract.getPackageName());
-            servicePackageDTO.setExpirationDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPackageExpirationDate()));
-            emspContract.setServicePackage(servicePackageDTO);
-
-            OemPaymentInfo paymentInfo = new OemPaymentInfo();
-            paymentInfo.setAssetId(contract.getPaymentAssetId());
-            paymentInfo.setExpirationDate(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(contract.getPaymentExpirationDate()));
-            emspContract.setPayment(paymentInfo);
-
-            // RFID 정보 조회
-            List<RFID> rfids = rfidRepository.findByOemContractContractIdAndStatus(contract.getContractId(), 1);
-            if (!rfids.isEmpty()) {
-                RFID rfid = rfids.get(0); // 상태가 1인 첫 번째 RFID 가져오기
-                EmspRfidCard emspRfidCard = new EmspRfidCard();
-                emspRfidCard.setCardId(rfid.getId());
-                emspRfidCard.setCardNumber(rfid.getRfNum());
-                emspRfidCard.setStatus(rfid.getStatus() == 1 ? "Active" : "Inactive");
-                emspRfidCard.setIssuedAt(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").format(rfid.getIssuedAt()));
-                emspContract.setRfidCard(emspRfidCard);
-            }
-
-            return emspContract;
-        }).collect(Collectors.toList());
-
-        emspAccount.setContracts(emspContracts);
+        // 계약 가져오기
+        ServiceResult<List<EmspContract>> contractResult = contractService.getContractsByAccountKey(updatedAccount.getEmspAccountKey());
+        emspAccount.setContracts(contractResult.get());
 
         result.succeed(emspAccount);
         return result;
@@ -280,27 +193,35 @@ public class AccountServiceImpl implements AccountService {
 
     @Override
     @Transactional
-    public ServiceResult<Void> deleteAccountById(String emspAccountKey) {
-        ServiceResult<Void> result = new ServiceResult<>();
-        Optional<Account> accountOpt = accountRepository.findById(emspAccountKey);
+    public ServiceResult<String> deleteAccountById(String emspAccountKey) {
+        ServiceResult<String> result = new ServiceResult<>();
+        Optional<EmspAccountEntity> accountOpt = emspAccountRepository.findById(emspAccountKey);
         if (!accountOpt.isPresent()) {
             result.fail(404, "계정을 찾을 수 없습니다.");
             return result;
         }
 
-        Account existingAccount = accountOpt.get();
+        EmspAccountEntity existingAccount = accountOpt.get();
 
-        List<OemContract> contracts = contractRepository.findByAccountAndContractStatus(existingAccount, 1);
+        // 1. 유효한 계약이 남아있다면 거절
+
+        List<EmspContractEntity> contracts = emspContractRepository.findByAccountAndContractStatus(existingAccount, 1);
         if (!contracts.isEmpty()) {
             result.setSuccess(false);
             result.setErrorMessage("유효한 계약이 남아있어 회원 탈퇴가 불가능합니다");
             return result;
         }
 
-        existingAccount.setAccountStatus(-1);
-        accountRepository.save(existingAccount);
-        result.setSuccess(true);
+        // 2. 유효한 계약이 없다면 Locked? Terminated?
+        // 우선 Locked로 둔다. (뒷단의 Termination 로직 다시 확인 필요)
+
+        existingAccount.setAccountStatus(2);
+        existingAccount.setAccountStatusReason("IN_TERMINATION");
+        emspAccountRepository.save(existingAccount);
+        result.succeed("OK");
         return result;
+
+        // TODO : 실제로는 이대로 반환할게 아니라, Termination에 필요한 프로세스가 돌아갸아 한다.
     }
 
 }

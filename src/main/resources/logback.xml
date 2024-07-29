@@ -28,6 +28,16 @@
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
+    <!-- COUCHBASE 요청 및 진행사항 로그 파일 출력 -->
+    <appender name="COUCHBASE_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>/var/log/chargeV/couchbase/couchbase.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/chargeV/couchbase/couchbase-%d{yyyy-MM-dd}.log</fileNamePattern>
+        </rollingPolicy>
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
     <!-- 루트 로거 설정 (시스템 로그) -->
     <root level="INFO">
         <appender-ref ref="STDOUT" />
@@ -37,5 +47,11 @@
     <!-- API 로거 설정 (API 요청 및 진행사항 로그) -->
     <logger name="API_LOGGER" level="DEBUG" additivity="false">
         <appender-ref ref="API_FILE" />
+    </logger>
+
+    
+    <!-- API 로거 설정 (API 요청 및 진행사항 로그) -->
+    <logger name="COUCHBASE_LOGGER" level="DEBUG" additivity="false">
+        <appender-ref ref="COUCHBASE_FILE" />
     </logger>
 </configuration>

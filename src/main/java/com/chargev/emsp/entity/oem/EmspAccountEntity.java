@@ -9,16 +9,19 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Table(name = "OEM_ACCOUNT")
+@Table(name = "EMSP_ACCOUNT")
 @Data
 @Entity
-public class Account {
+public class EmspAccountEntity {
     @Id
-    @Column(name = "EMSP_ACCOUNT_KEY", columnDefinition = "VARCHAR(255)", nullable = false)
+    @Column(name = "EMSP_ACCOUNT_KEY", columnDefinition = "CHAR(32)", nullable = false)
     private String emspAccountKey;
 
     @Column(name = "ACCOUNT_STATUS", columnDefinition = "INT", nullable = false)
     private int accountStatus;
+
+    @Column(name = "ACCOUNT_STATUS_REASON", columnDefinition = "VARCHAR(255)")
+    private String accountStatusReason;
     
     @Column(name = "CIAM_ID", columnDefinition = "VARCHAR(255)", nullable = false)
     private String ciamId;
@@ -48,5 +51,5 @@ public class Account {
     private String country;
 
     @OneToMany(mappedBy = "account")
-    private List<OemContract> contracts;
+    private List<EmspContractEntity> contracts;
 }

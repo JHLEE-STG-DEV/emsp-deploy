@@ -6,7 +6,8 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public enum Access {
     PUBLIC("PUBLIC"),
     SEMIPUBLIC("SEMIPUBLIC"),
-    PRIVATE("PRIVATE");
+    PRIVATE("PRIVATE"),
+    UNKNOWN("UNKNOWN");
   
     private String value;
   

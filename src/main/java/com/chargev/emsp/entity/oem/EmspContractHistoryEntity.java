@@ -1,37 +1,34 @@
 package com.chargev.emsp.entity.oem;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.Data;
 
-@Table(name = "OEM_CONTRACT")
+@Table(name = "EMSP_CONTRACT_HISTORY")
 @Data
 @Entity
-public class OemContract {
+public class EmspContractHistoryEntity {
     @Id
-    @Column(name = "CONTRACT_ID", columnDefinition = "VARCHAR(255)")
+    @Column(name = "CONTRACT_HISTORY_ID", columnDefinition = "CHAR(32)")
+    private String contractHistoryId;
+
+    @Column(name = "CONTRACT_ID", columnDefinition = "CHAR(15)")
     private String contractId;
 
-    @ManyToOne
-    @JoinColumn(name = "ACCOUNT_ID", nullable = false)
-    private Account account;
+    @Column(name = "EMSP_ACCOUNT_KEY", columnDefinition = "CHAR(32)", nullable = false)
+    private String accountId;
 
-    @Column(name = "VIN", columnDefinition = "VARCHAR(255)", nullable = false)
+    @Column(name = "VEHICLE_VIN", columnDefinition = "VARCHAR(255)", nullable = false)
     private String vin;
 
     @Column(name = "VEHICLE_TYPE", columnDefinition = "VARCHAR(255)")
     private String vehicleType;
 
-    @Column(name = "MODE_NAME", columnDefinition = "VARCHAR(255)")
+    @Column(name = "VEHICLE_MODE_NAME", columnDefinition = "VARCHAR(255)")
     private String modeName;
 
     @Column(name = "PACKAGE_ID", columnDefinition = "VARCHAR(255)")
@@ -49,9 +46,6 @@ public class OemContract {
     @Column(name = "PAYMENT_EXPIRATION_DATE", columnDefinition = "TIMESTAMP")
     private Date paymentExpirationDate;
 
-    @OneToMany(mappedBy = "oemContract")
-    private List<RFID> rfids;
-
     @Column(name = "CONTRACT_STATUS", columnDefinition = "INTEGER")
     private int contractStatus;
 
@@ -61,11 +55,20 @@ public class OemContract {
     @Column(name = "CONTRACT_START_DATE", columnDefinition = "TIMESTAMP")
     private Date contractStartDate; // 계약 시작 날짜 필드 추가
 
-    public void setRfid(RFID rfid) {
-        if (this.rfids == null) {
-            this.rfids = new ArrayList<>();
-        }
-        this.rfids.add(rfid);
-        rfid.setOemContract(this); // RFID 객체에 OemContract 설정
-    }
+    // RFID 관련된 내용을 JOIN테이블로 구성하지 않고 반정규화로 최신 내용만 복사로 구성함
+    @Column(name = "RFID_ID", columnDefinition = "CHAR(32)")
+    private String rfidId;
+
+    @Column(name = "RFID_NUM", columnDefinition = "CHAR(16)")
+    private String rfNum;
+
+    // 카드의 상태
+    @Column(name = "RFID_STATUS", columnDefinition = "INTEGER")
+    private int status;
+
+    @Column(name = "UPDATE_REASON", columnDefinition = "VARCHAR(255)")
+    private String updateReason;
+
+    @Column(name = "LAST_UPDATED_AT", columnDefinition = "TIMESTAMP")
+    private Date lastUpdatedAt;
 }

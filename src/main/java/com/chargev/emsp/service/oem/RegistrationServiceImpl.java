@@ -6,26 +6,25 @@ import java.util.Optional;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.chargev.emsp.entity.oem.Account;
+import com.chargev.emsp.entity.oem.EmspAccountEntity;
 import com.chargev.emsp.model.dto.oem.EmspAccount;
 import com.chargev.emsp.model.dto.oem.EmspAccountRegistration;
 import com.chargev.emsp.model.dto.oem.EmspContract;
 import com.chargev.emsp.model.dto.oem.EmspContractRequest;
 import com.chargev.emsp.model.dto.oem.OemAccount;
-import com.chargev.emsp.repository.oem.AccountRepository;
+import com.chargev.emsp.repository.oem.EmspAccountRepository;
 import com.chargev.emsp.service.ServiceResult;
+import com.chargev.emsp.service.oem.AccountService;
+import com.chargev.emsp.service.oem.ContractService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class RegistrationServiceImpl implements RegistrationService {
+    private final EmspAccountRepository emspAccountRepository;
     private final AccountService accountService;
     private final ContractService contractService;
-    private final AccountRepository accountRepository;
-
-    public RegistrationServiceImpl(AccountService accountService, ContractService contractService, AccountRepository accountRepository) {
-        this.accountService = accountService;
-        this.contractService = contractService;
-        this.accountRepository = accountRepository;
-    }
 
     @Override
     @Transactional
@@ -36,7 +35,7 @@ public class RegistrationServiceImpl implements RegistrationService {
             EmspContractRequest contractRequest = registration.getContractRequest();
 
             // Step 1: Check for ciam_id duplication
-            Optional<Account> existingAccountOpt = accountRepository.findByCiamId(oemAccount.getCiamId());
+            Optional<EmspAccountEntity> existingAccountOpt = emspAccountRepository.findByCiamId(oemAccount.getCiamId());
             if (existingAccountOpt.isPresent() && existingAccountOpt.get().getAccountStatus() == 1) {
                 throw new IllegalArgumentException("이미 가입된 ME 회원입니다.");
             }

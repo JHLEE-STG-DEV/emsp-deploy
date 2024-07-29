@@ -48,7 +48,9 @@ dependencies {
 
     implementation 'org.springframework.kafka:spring-kafka' // kafka
 
-    
+    implementation group: 'com.couchbase.client', name: 'java-client', version: '3.7.1' // couchbase
+implementation group: 'org.springframework.data', name: 'spring-data-couchbase', version: '5.3.2'
+
 	implementation group: 'org.slf4j', name: 'slf4j-api', version: '2.0.13' // 내부 로깅
 }
 

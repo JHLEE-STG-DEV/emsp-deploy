@@ -1,5 +1,12 @@
-{"properties": [{
-  "name": "spring.datasource.jdbc-url",
-  "type": "java.lang.String",
-  "description": "A description for 'spring.datasource.jdbc-url'"
-}]}
+{"properties": [
+  {
+    "name": "spring.datasource.jdbcUrl",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.jdbc-url'"
+  },
+  {
+    "name": "spring.poidatasource.jdbcUrl",
+    "type": "java.lang.String",
+    "description": "A description for 'spring.datasource.jdbc-url'"
+  }
+]}

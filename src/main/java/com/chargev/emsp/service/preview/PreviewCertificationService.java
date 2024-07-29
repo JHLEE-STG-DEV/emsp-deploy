@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -29,6 +30,7 @@ import com.chargev.emsp.model.dto.pnc.KpipReqBodyIssueContractCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyPushWhitelistItem;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyRevokeCert;
 import com.chargev.emsp.model.dto.pnc.KpipReqBodyVerifyContractCert;
+import com.chargev.emsp.model.dto.pnc.KpipReqBodyVerifyOcsp;
 import com.chargev.emsp.model.dto.pnc.OcspResponse;
 import com.chargev.emsp.model.dto.pnc.PncContract;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyAuthorize;
@@ -39,6 +41,7 @@ import com.chargev.emsp.model.dto.pnc.PncReqBodyIssueContract;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyOCSPMessage;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyRevokeCert;
 import com.chargev.emsp.model.dto.pnc.PncReqBodyRevokeContractCert;
+import com.chargev.emsp.model.dto.pnc.PncReqBodyVerifyOcsp;
 import com.chargev.emsp.service.ServiceResult;
 import com.chargev.emsp.service.cryptography.CertificateConversionService;
 import com.chargev.emsp.service.http.KpipApiService;
@@ -182,10 +185,10 @@ public class PreviewCertificationService {
         boolean requestNew = "NEW".equalsIgnoreCase(request.getIssueType());
         // 풀링용 아이디.
         ServiceResult<CheckCertIssueCondition> checkCondition = certService.checkCertCondition(request.getEcKey(),
-                trackId,requestNew);
+                trackId, requestNew);
 
         if (checkCondition.isFail()) {
-            serviceResult.fail(checkCondition.getErrorCode(),  checkCondition.getErrorMessage());
+            serviceResult.fail(checkCondition.getErrorCode(), checkCondition.getErrorMessage());
             certService.finishIssueCertIdentity(request.getEcKey(), trackId, false, checkCondition.getErrorCode(),
                     checkCondition.getErrorMessage());
             return serviceResult;
@@ -203,14 +206,16 @@ public class PreviewCertificationService {
         // 비동기 작업 완료 후 처리
         certFuture.thenAccept(certResult -> {
             if (certResult.getSuccess()) {
-                try{
+                try {
                     kafkaService.sendCertResult(certResult.get(), trackId);
-                }catch(Exception ex){
+                } catch (Exception ex) {
                     ex.printStackTrace();
                 }
-                certService.finishIssueCertIdentity(request.getEcKey(), trackId, true, 200, certResult.getErrorMessage());
-            }else{
-                certService.finishIssueCertIdentity(request.getEcKey(), trackId, false, certResult.getErrorCode(), certResult.getErrorMessage());
+                certService.finishIssueCertIdentity(request.getEcKey(), trackId, true, 200,
+                        certResult.getErrorMessage());
+            } else {
+                certService.finishIssueCertIdentity(request.getEcKey(), trackId, false, certResult.getErrorCode(),
+                        certResult.getErrorMessage());
             }
         }).exceptionally(ex -> {
             // 예외 처리
@@ -309,7 +314,6 @@ public class PreviewCertificationService {
         kafkaObject.setCertType(certType);
         kafkaObject.setAuthorities(authorities);
         kafkaObject.setResult("FAIL");
-        
 
         // 2. DB에 풀링 저장
         ServiceResult<String> initCertResult = certService.initNewCert(certId, csr);
@@ -718,45 +722,101 @@ public class PreviewCertificationService {
 
     // #endregion
     // #region CERT-RESPONSE
+    // TODO : 리턴은 어떻게?
+
+    private class KpipOcspVerificationFactory {
+        private Map<String, Object> rawResult;
+
+        private boolean systemStatus = true;
+        @Getter
+        private String resultMessage;
+        private String resultCode;
+
+        @Getter
+        private String status;
+
+        public KpipOcspVerificationFactory(Map<String, Object> rawResult) {
+            this.rawResult = rawResult;
+            try {
+                resultCode = (String) rawResult.get("resultCode");
+                resultMessage = (String) rawResult.get("resultMsg");
+                status = (String) rawResult.get("status");
+
+            } catch (Exception ex) {
+                systemStatus = false;
+                resultCode = "INTERNAL_FAIL";
+                resultMessage = "resultCode 및 resultMsg 형식 불일치";
+            }
+        }
+    }
+
+    public ServiceResult<OcspResponse> ocspVerification(PncReqBodyVerifyOcsp request, String trackId) {
+        ServiceResult<OcspResponse> serviceResult = new ServiceResult<>();
+        if (request == null) {
+            serviceResult.fail(400, "Bad Request : Body is null");
+            return serviceResult;
+        }
+        if (StringUtils.isBlank(request.getCert())) {
+            serviceResult.fail(400, "Bad Request : Cert is null");
+            return serviceResult;
+        }
+        if (request.getEcKey() == null) {
+
+            serviceResult.fail(400, "Bad Request : EcKey is null");
+            return serviceResult;
+        }
+
+        // 그냥 그대로 전달하고 리턴값도 그대로 달라고 해서 그렇게 짠다.
+        // 하지만 아래처럼 믿을 수 없으니 일단 조회해온다.
+        ServiceResult<CertificationMeta> certResult = certService.findCertByEcKey(request.getEcKey());
+        if (certResult.isFail()) {
+            serviceResult.fail(certResult.getErrorCode(), certResult.getErrorMessage());
+            return serviceResult;
+        }
+
+        // TODO : Request가 어떤것으로 오는지 받은 연락이 없다. 일단 PEM이라 가정하고 DER로 변환한다.
+        String certPEM = request.getCert();
+        String derCsr = certificateConversionService.convertToBase64DER(certPEM);
+
+        KpipReqBodyVerifyOcsp kpipRequest = new KpipReqBodyVerifyOcsp();
+        kpipRequest.setCert(derCsr);
+        kpipRequest.setNonce(request.getNonce() == null ? false : request.getNonce());
+
+        ServiceResult<Map<String, Object>> kpipResult = kpipApiService.verifyOcspFull(kpipRequest, trackId);
+
+        if (kpipResult.isFail()) {
+            serviceResult.fail(500, kpipResult.getErrorMessage());
+        } else {
+            KpipOcspVerificationFactory factory = new KpipOcspVerificationFactory(kpipResult.get());
+            OcspResponse ocspRes = new OcspResponse();
+            ocspRes.setStatus(factory.getStatus());
+            serviceResult.succeed(ocspRes);
+        }
+        return serviceResult;
+    }
+
+    // #endregion
+    // #region CERT-RESPONSE
     public ServiceResult<OcspResponse> ocspCertCheck(PncReqBodyOCSPMessage request, String trackId) {
         ServiceResult<OcspResponse> serviceResult = new ServiceResult<>();
         // 풀링용 아이디.
         Long ecKey = request.getEcKey();
-        if(ecKey == null){
+        if (ecKey == null) {
             serviceResult.fail(400, "EC KEY가 올바르지 않습니다.");
             return serviceResult;
         }
         // 그냥 그대로 전달하고 리턴값도 그대로 달라고 해서 그렇게 짠다.
-        // 그렇게 말해놓고 막상 값은 안보내줘서 내부에서 파싱해야된다. 그니까 주워온다.
-        ServiceResult<CertificationMeta> certResult =  certService.findCertByEcKey(ecKey);
-        if(certResult.isFail()){
-            serviceResult.fail(certResult.getErrorCode(), certResult.getErrorMessage());
-            return serviceResult;
-        }
-        // cert에서 ocsp url을 파싱한다.
-        String ocspUrl;
-        try{
-            String fullCert = certResult.get().getFullCert();
-            CertificateInfo info = certificateConversionService.getCertInfoFromPEM(fullCert);
-
-            ocspUrl = info.getOcspUrl();
-
-        }catch(Exception ex){
-            ex.printStackTrace();
-            serviceResult.fail(400, "인증서의 ocspUrl값을 분석하는 데 실패하였습니다.");
-            return serviceResult;
-        }
-
+        // 파싱을 하지 말고 그대로 보내달라고했다. 따라서 DB에 조회할필요도 없다.
 
         KpipReqBodyGetOcspMessage kpipRequest = new KpipReqBodyGetOcspMessage();
         kpipRequest.setOcspReq(request.getOcspRequestData());
-        kpipRequest.setOcspUrl(ocspUrl);
+        kpipRequest.setOcspUrl(request.getOcspUrl());
 
         ServiceResult<Map<String, Object>> kpipResult = kpipApiService.getOcspResponseMessageFull(kpipRequest, trackId);
 
-        if(kpipResult.isFail()){
+        if (kpipResult.isFail()) {
             serviceResult.fail(500, kpipResult.getErrorMessage());
-        }else{
+        } else {
             KpipOcspFactory factory = new KpipOcspFactory(kpipResult.get());
             OcspResponse ocspRes = new OcspResponse();
             ocspRes.setOcspRes(factory.getOcspRes());
@@ -765,7 +825,56 @@ public class PreviewCertificationService {
         }
         return serviceResult;
     }
-    private class KpipOcspFactory{
+
+    // Legacy
+    public ServiceResult<OcspResponse> ocspCertCheckLegacy(PncReqBodyOCSPMessage request, String trackId) {
+        ServiceResult<OcspResponse> serviceResult = new ServiceResult<>();
+        // 풀링용 아이디.
+        Long ecKey = request.getEcKey();
+        if (ecKey == null) {
+            serviceResult.fail(400, "EC KEY가 올바르지 않습니다.");
+            return serviceResult;
+        }
+        // 그냥 그대로 전달하고 리턴값도 그대로 달라고 해서 그렇게 짠다.
+        // 그렇게 말해놓고 막상 값은 안보내줘서 내부에서 파싱해야된다. 그니까 주워온다.
+        ServiceResult<CertificationMeta> certResult = certService.findCertByEcKey(ecKey);
+        if (certResult.isFail()) {
+            serviceResult.fail(certResult.getErrorCode(), certResult.getErrorMessage());
+            return serviceResult;
+        }
+        // cert에서 ocsp url을 파싱한다.
+        String ocspUrl;
+        try {
+            String fullCert = certResult.get().getFullCert();
+            CertificateInfo info = certificateConversionService.getCertInfoFromPEM(fullCert);
+
+            ocspUrl = info.getOcspUrl();
+
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            serviceResult.fail(400, "인증서의 ocspUrl값을 분석하는 데 실패하였습니다.");
+            return serviceResult;
+        }
+
+        KpipReqBodyGetOcspMessage kpipRequest = new KpipReqBodyGetOcspMessage();
+        kpipRequest.setOcspReq(request.getOcspRequestData());
+        kpipRequest.setOcspUrl(ocspUrl);
+
+        ServiceResult<Map<String, Object>> kpipResult = kpipApiService.getOcspResponseMessageFull(kpipRequest, trackId);
+
+        if (kpipResult.isFail()) {
+            serviceResult.fail(500, kpipResult.getErrorMessage());
+        } else {
+            KpipOcspFactory factory = new KpipOcspFactory(kpipResult.get());
+            OcspResponse ocspRes = new OcspResponse();
+            ocspRes.setOcspRes(factory.getOcspRes());
+            ocspRes.setStatus(factory.getStatus());
+            serviceResult.succeed(ocspRes);
+        }
+        return serviceResult;
+    }
+
+    private class KpipOcspFactory {
         private Map<String, Object> rawResult;
 
         private boolean systemStatus = true;
@@ -871,6 +980,31 @@ public class PreviewCertificationService {
     }
 
     // 이걸 실패하면, 원본의 구독해제도 해줘야할 것이다. (실패면 죽은것과 다름없기때문)
+    private String buildEmaId(int oemCode, int baseNumber) {
+        // New Rule :<EMAID> = <Country Code> <S> <Provider ID> <S> <eMA Instance> <S>
+        // <Check Digit>
+        // <S> 는 일단 없는것으로 하자. (제공해준 샘플에서 사용하지 않으므로)
+
+        // baseNumber을 이용해 XXXXXXX(7자리) + D(1자리) 를 만들자.
+        //
+        int checkDigit = baseNumber % 10;
+        int serial = baseNumber / 10;
+
+        // Integer를 16진수 문자열로 변환
+        String hexString = Integer.toHexString(serial).toUpperCase();
+
+        // 최소 7자리 형식으로 표현하기
+        // 7자리를 다 차지했을때에 대한 제안은 받지 못했다. 그냥 시스템 정지이고 그때가서 해결한다 라는 포지션으로 이해한다. 이쪽에선 그래도 혹시모르니 자리수확장을 확보해놓는다.
+        String formattedHexString;
+        if (hexString.length() > 7) {
+            formattedHexString = hexString; // 8자리 이상이면 그대로 사용
+        } else {
+            formattedHexString = String.format("%7s", hexString).replace(' ', '0'); // 7자리로 패드
+        }
+
+        return String.format("%s%s%d0%s%d", "KR", "CEV", oemCode, formattedHexString, checkDigit);
+    }
+
     @Async
     public CompletableFuture<ServiceResult<ContCertKafkaDTO>> issueContractAsync(String contractId,
             PncReqBodyIssueContract request,
@@ -942,7 +1076,15 @@ public class PreviewCertificationService {
         String emaId = initContractResult.get().getEmaId();
         if (emaId == null) {
             // 신규
-            emaId = "KR" + "CEV" + "CA" + String.format("%07d", initContractResult.get().getEmaBaseNumber());
+            // oem code를 설정해야되는데 기준을 모르겠다.
+            int oemCode = 0; // 사전약속되지않은것
+            if("KMK".equalsIgnoreCase(oemId) || "BMW".equalsIgnoreCase(oemId)){
+                oemCode = 1;
+            }
+            //TODO 벤츠는 2인데, 벤츠가 무슨 코드로 올지는 협의되지 않음.
+
+            emaId = buildEmaId(oemCode, initContractResult.get().getEmaBaseNumber());
+            //emaId = "KR" + "CEV" + "CA" + String.format("%07d", initContractResult.get().getEmaBaseNumber());
         }
         kafkaObject.setEmaId(emaId);
 
