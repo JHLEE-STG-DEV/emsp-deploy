@@ -14,7 +14,7 @@ public class EmspAccount {
     private String emspAccountKey;
     @Schema(description = "Account status on ChargeEV")
     @JsonProperty("account_status")
-    private String accountStatus;
+    private EmspStatus accountStatus;
     @Schema(description = "Contract information from Charge EV", type="array", implementation=EmspContract.class)
     private List<EmspContract> contracts;
     @Schema(description = "회원명", example="홍길동")

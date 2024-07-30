@@ -34,7 +34,7 @@ public class CpoServiceImpl implements CpoService {
             // contract,rfid의 status가 모두 1인 것만 찾고 그 과정에서 없으면 IllegalArgumentException를 반환하므로 결과를 받아와서 분기를 따로 할 필요는 없다.
             // Exception이 발생하지 않았다면 유효한 계약과 rfid라는 의미이므로 바로 MPAY로 결제를 넘기면 된다.
             // TODO : ACCOUNT의 유효성도 검사해야 할까? Account가 유효하지 않고 Contract만 유효한 경우는 시스템 상 있을 수 없는데 더블체크가 필요할지 모르겠다.
-            EmspContractEntity contract = oemServiceUtils.findContractByRfidNumAndRfidStatusAndContractStatus(request.getRfid(), 1, 1);
+            EmspContractEntity contract = oemServiceUtils.findContractByRfidNumAndRfidStatusAndContractStatus(request.getRfId(), 1, 1);
         } catch (IllegalArgumentException e) {
             result.fail(400, "결제 가능한 RFID가 아닙니다.");
             return result;
@@ -79,7 +79,7 @@ public class CpoServiceImpl implements CpoService {
         CpoReqBodyStartSession request = new CpoReqBodyStartSession();
         request.setOemCode("BENZ");
         request.setTradeNumber(UUID.randomUUID().toString().replace("-", ""));
-        request.setConnectorType("");
+        // request.setConnectorType("");
         request.setPaymentPrice(new BigDecimal("31000.00"));
         request.setEmspPrice(new BigDecimal("10000.00"));
 

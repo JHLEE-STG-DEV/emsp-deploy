@@ -20,13 +20,12 @@ import com.chargev.emsp.service.log.CpoLogService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
-import org.springframework.web.reactive.function.client.ClientResponse;
 
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Mono;
+
 
 @Service
 public class CpoApiService {
@@ -42,7 +41,10 @@ public class CpoApiService {
     @Value("${cpo.base.url}")
     private String baseUrl;
 
-    public CpoApiService(CpoLogService cpoLogService, ObjectMapper objectMapper) {
+    public CpoApiService(@Value("${cpo.base.url}") String baseUrl, @Value("${cpo.token}") String token, CpoLogService cpoLogService, ObjectMapper objectMapper) {
+        // 디버깅 로그 추가
+        apiLogger.info("Initializing WebClient with baseUrl: {}", baseUrl);
+        
         this.webClient = WebClient.builder()
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
@@ -80,7 +82,7 @@ public class CpoApiService {
         String url = "";
 
         try {
-            url = baseUrl + "/emsp/charger/" + ecKey + "/start";
+            url = "/emsp/charger/" + ecKey + "/start";
         } catch (Exception e) {
             apiLogger.error("ecKey 오류.");
         }
@@ -106,8 +108,7 @@ public class CpoApiService {
         Mono<Map<String, Object>> responseMono = webClient.post()
                 .uri(url)
                 .body(BodyInserters.fromValue(request))
-                .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                .retrieve().bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
                 });
         try {
             Map<String, Object> response = responseMono.block();

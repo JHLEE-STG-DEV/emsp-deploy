@@ -17,7 +17,9 @@ import com.chargev.emsp.model.dto.oem.OemAccountAddress;
 import com.chargev.emsp.repository.oem.EmspAccountRepository;
 import com.chargev.emsp.repository.oem.EmspContractRepository;
 import com.chargev.emsp.repository.oem.EmspRfidRepository;
+import com.chargev.emsp.model.dto.oem.EmspStatus;
 import com.chargev.emsp.service.ServiceResult;
+import com.chargev.emsp.service.oem.OemServiceUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -28,6 +30,7 @@ public class AccountServiceImpl implements AccountService {
     private final EmspContractRepository emspContractRepository;
     private final EmspRfidRepository emspRfidRepository;
     private final ContractService contractService;
+    private final OemServiceUtils oemServiceUtils;
 
     @Override
     public boolean isCiamIdExists(String ciamId) {
@@ -68,7 +71,7 @@ public class AccountServiceImpl implements AccountService {
         OemAccountAddress emspAddress = new OemAccountAddress();
 
         emspAccount.setEmspAccountKey(account.getEmspAccountKey());
-        emspAccount.setAccountStatus("Active");
+        emspAccount.setAccountStatus(EmspStatus.ACTIVE);
         emspAccount.setName(account.getName());
         emspAccount.setEmail(account.getEmail());
         emspAccount.setMobileNumber(account.getMobileNumber());
@@ -99,7 +102,7 @@ public class AccountServiceImpl implements AccountService {
         EmspAccountEntity account = accountOpt.get();
         EmspAccount emspAccount = new EmspAccount();
         emspAccount.setEmspAccountKey(account.getEmspAccountKey());
-        emspAccount.setAccountStatus("Active");
+        emspAccount.setAccountStatus(EmspStatus.ACTIVE);
         emspAccount.setName(account.getName());
         emspAccount.setEmail(account.getEmail());
         emspAccount.setMobileNumber(account.getMobileNumber());
@@ -170,7 +173,7 @@ public class AccountServiceImpl implements AccountService {
 
         EmspAccount emspAccount = new EmspAccount();
         emspAccount.setEmspAccountKey(updatedAccount.getEmspAccountKey());
-        emspAccount.setAccountStatus(updatedAccount.getAccountStatus() == 1 ? "Active" : "Inactive");
+        emspAccount.setAccountStatus(oemServiceUtils.getEmspStatusEnumFromInt(updatedAccount.getAccountStatus()));
         emspAccount.setName(updatedAccount.getName());
         emspAccount.setEmail(updatedAccount.getEmail());
         emspAccount.setMobileNumber(updatedAccount.getMobileNumber());

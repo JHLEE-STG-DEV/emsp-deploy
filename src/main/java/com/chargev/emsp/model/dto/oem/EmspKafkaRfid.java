@@ -11,10 +11,10 @@ public class EmspKafkaRfid {
     private String oemCode;
     
     @Schema(description = "rfid", example = "0000000000000000")
-    private String rfid;
+    private String rfId;
 
     @Schema(description = "rfid status", example = "AVAILABLE")
-    private String rfidStatus;
+    private String rfIdStatus;
 
     @Schema(description = "request date", example = "2024-01-01T00:00:00Z")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")

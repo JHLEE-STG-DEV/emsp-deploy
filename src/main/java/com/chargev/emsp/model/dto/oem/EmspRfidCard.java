@@ -15,7 +15,7 @@ public class EmspRfidCard {
     @JsonProperty("card_number")
     private String cardNumber;
     @Schema(description = "RFID 카드 상태")
-    private String status;
+    private EmspStatus status;
     @Schema(description = "RFID 카드 상태에 대한 이유(분실 등)")
     private String reason;
     @Schema(description = "등록 날짜")

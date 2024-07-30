@@ -20,11 +20,14 @@ import com.chargev.emsp.model.dto.oem.EmspContractRequest;
 import com.chargev.emsp.model.dto.oem.EmspDriverGroupInfo;
 import com.chargev.emsp.model.dto.oem.EmspRfidCard;
 import com.chargev.emsp.model.dto.oem.EmspServicePackage;
+import com.chargev.emsp.model.dto.oem.EmspStatus;
 import com.chargev.emsp.model.dto.oem.OemPaymentInfo;
 import com.chargev.emsp.model.dto.oem.OemVehicle;
 import com.chargev.emsp.repository.oem.EmspContractRepository;
 import com.chargev.emsp.repository.oem.EmspKeyBaseRepository;
 import com.chargev.emsp.service.ServiceResult;
+import com.chargev.emsp.model.dto.oem.EmspContractStatusReason;
+import com.chargev.emsp.model.dto.oem.EmspRfidStatusReason;
 
 import lombok.RequiredArgsConstructor;
 
@@ -226,19 +229,19 @@ public class ContractServiceImpl implements ContractService {
     private void handleContractStatusChange(EmspContractEntity contract, EmspContract contractRequest) {
         boolean isNowActivated = contract.getContractStatus() == 1;
         boolean isNowLocked = contract.getContractStatus() == 2;
-        boolean isRequestActivating = contractRequest.getContractStatus().equals("Active");
-        boolean isRequestLocking = contractRequest.getContractStatus().equals("Inactive");
+        boolean isRequestActivating = contractRequest.getContractStatus().equals(EmspStatus.ACTIVE.toString());
+        boolean isRequestLocking = contractRequest.getContractStatus().equals(EmspStatus.LOCKED.toString());
 
         if (isNowActivated && isRequestLocking) {
-            oemServiceUtils.lockContract(contract.getContractId(), "INACTIVE");
+            oemServiceUtils.lockContract(contract.getContractId(),EmspContractStatusReason.INACTIVE.toString());
             if(contract.getRfidStatus() == 1) {
-                oemServiceUtils.lockRfid(contract.getContractId(), "CONTRACT_LOCKED");
+                oemServiceUtils.lockRfid(contract.getContractId(),EmspRfidStatusReason.CONTRACT_LOCKED.toString());
             }
-            oemServiceUtils.createHistoryRecord(contract, "USER_INACTIVE");
+            oemServiceUtils.createHistoryRecord(contract, EmspContractStatusReason.INACTIVE.toString());
         } else if (isNowLocked && isRequestActivating) {
-            oemServiceUtils.unlockContract(contract.getContractId(), "ACTIVE");
+            oemServiceUtils.unlockContract(contract.getContractId(), null);
             if(contract.getRfidStatus() == 2) {
-                oemServiceUtils.unlockRfid(contract.getContractId(), "CONTRACT_UNLOCKED");
+                oemServiceUtils.unlockRfid(contract.getContractId(), null);
             }
             oemServiceUtils.createHistoryRecord(contract, "USER_ACTIVE");
         } else if (!isNowActivated && !isNowLocked) {
@@ -293,10 +296,8 @@ public class ContractServiceImpl implements ContractService {
         keyBase = emspKeyBaseRepository.save(keyBase);
         Integer keyBaseId = keyBase.getId();
 
-        String hex = String.format("%07X", keyBaseId / 10);
-        int checkDigit = keyBaseId % 10;
-
-        String sequenceHex = hex + checkDigit;
+        // 7자리 16진수로 변환
+        String sequenceHex = String.format("%07X", keyBaseId); 
 
         keyBase.setSequenceHex(sequenceHex);
         emspKeyBaseRepository.save(keyBase);
@@ -331,7 +332,7 @@ public class ContractServiceImpl implements ContractService {
     private EmspContract createEmspContractResponse(EmspContractEntity contract) {
         EmspContract emspContract = new EmspContract();
         emspContract.setContractId(String.valueOf(contract.getContractId()));
-        emspContract.setContractStatus(contract.getContractStatus() == 1 ? "Active" : "Inactive");
+        emspContract.setContractStatus(oemServiceUtils.getEmspStatusEnumFromInt(contract.getContractStatus()));
         emspContract.setContractStartDate(oemServiceUtils.formatDate(contract.getContractStartDate()));
         emspContract.setContractEndDate(oemServiceUtils.formatDate(contract.getPackageExpirationDate()));
 
@@ -358,7 +359,7 @@ public class ContractServiceImpl implements ContractService {
                 .ifPresent(status -> {
                     emspRfidCard.setCardId(contract.getRfidId());
                     emspRfidCard.setCardNumber(contract.getRfidNum());
-                    emspRfidCard.setStatus(status == 1 ? "Active" : "InActive");
+                    emspRfidCard.setStatus(oemServiceUtils.getEmspStatusEnumFromInt(status));
                     emspRfidCard.setRegistrationDate(oemServiceUtils.formatDate(contract.getRfidRegistrationDate()));
                     emspContract.setRfidCard(emspRfidCard);
                 });

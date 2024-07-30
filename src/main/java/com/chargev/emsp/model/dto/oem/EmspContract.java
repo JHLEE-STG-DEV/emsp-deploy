@@ -14,7 +14,7 @@ public class EmspContract {
 
     @Schema(description = "계약상태")
     @JsonProperty("contract_status")
-    private String contractStatus;
+    private EmspStatus contractStatus;
 
     @Schema(description = "계약 개시")
     @JsonFormat(pattern = "YYYY-MM-DDTHH:MM:SS.sssZ", timezone = "UTC")

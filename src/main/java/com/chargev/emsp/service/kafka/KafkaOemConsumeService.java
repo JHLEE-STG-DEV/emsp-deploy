@@ -23,7 +23,7 @@ public class KafkaOemConsumeService {
     private final ObjectMapper objectMapper;
     private final TopicNames topicNames;
 
-    @KafkaListener(topics = "#{topicNames.getTopicName()}", containerFactory = "kafkaListenerContainerFactory")
+    @KafkaListener(topics = "MSG-EMSP-CHARGE-HISTORY", containerFactory = "kafkaListenerContainerFactory")
     public void listen(Map<String, Object> message, Acknowledgment acknowledgment) {
         String trackId = IdHelper.genLowerUUID32();
         System.out.println("Received message: " + message);

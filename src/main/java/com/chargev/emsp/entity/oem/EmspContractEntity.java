@@ -15,7 +15,7 @@ import lombok.Data;
 @Entity
 public class EmspContractEntity {
     @Id
-    @Column(name = "CONTRACT_ID", columnDefinition = "CHAR(15)")
+    @Column(name = "CONTRACT_ID", columnDefinition = "CHAR(14)")
     private String contractId;
 
     @ManyToOne

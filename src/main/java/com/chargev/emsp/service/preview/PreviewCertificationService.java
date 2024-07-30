@@ -979,8 +979,25 @@ public class PreviewCertificationService {
         return serviceResult;
     }
 
-    // 이걸 실패하면, 원본의 구독해제도 해줘야할 것이다. (실패면 죽은것과 다름없기때문)
     private String buildEmaId(int oemCode, int baseNumber) {
+        // 20240730 요청
+// 자기들은 한전이랑 협의를 안해봐서 몰랐다. 뒤의 D를 빼달라.
+
+
+        // New New Rule :<EMAID> = <Country Code> <S> <Provider ID> <S> <eMA Instance> <S>
+        String hexString = Integer.toHexString(baseNumber);
+        // 최소 7자리 형식으로 표현하기
+        // 7자리를 다 차지했을때에 대한 제안은 받지 못했다. 그냥 시스템 정지이고 그때가서 해결한다 라는 포지션으로 이해한다. 이쪽에선 그래도 혹시모르니 자리수확장을 확보해놓는다.
+        String formattedHexString;
+        if (hexString.length() > 7) {
+            formattedHexString = hexString; // 8자리 이상이면 그대로 사용
+        } else {
+            formattedHexString = String.format("%7s", hexString).replace(' ', '0'); // 7자리로 패드
+        }
+
+        return String.format("%s%s%d0%s", "KR", "CEV", oemCode, formattedHexString);
+/*
+        // Deprecated
         // New Rule :<EMAID> = <Country Code> <S> <Provider ID> <S> <eMA Instance> <S>
         // <Check Digit>
         // <S> 는 일단 없는것으로 하자. (제공해준 샘플에서 사용하지 않으므로)
@@ -991,7 +1008,7 @@ public class PreviewCertificationService {
         int serial = baseNumber / 10;
 
         // Integer를 16진수 문자열로 변환
-        String hexString = Integer.toHexString(serial).toUpperCase();
+        String hexString = Integer.toHexString(serial);
 
         // 최소 7자리 형식으로 표현하기
         // 7자리를 다 차지했을때에 대한 제안은 받지 못했다. 그냥 시스템 정지이고 그때가서 해결한다 라는 포지션으로 이해한다. 이쪽에선 그래도 혹시모르니 자리수확장을 확보해놓는다.
@@ -1003,8 +1020,10 @@ public class PreviewCertificationService {
         }
 
         return String.format("%s%s%d0%s%d", "KR", "CEV", oemCode, formattedHexString, checkDigit);
+         */
     }
 
+    // 이걸 실패하면, 원본의 구독해제도 해줘야할 것이다. (실패면 죽은것과 다름없기때문)
     @Async
     public CompletableFuture<ServiceResult<ContCertKafkaDTO>> issueContractAsync(String contractId,
             PncReqBodyIssueContract request,

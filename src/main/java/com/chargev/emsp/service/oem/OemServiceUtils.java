@@ -16,6 +16,7 @@ import com.chargev.emsp.entity.oem.EmspContractEntity;
 import com.chargev.emsp.entity.oem.EmspContractHistoryEntity;
 import com.chargev.emsp.entity.oem.EmspRfidEntity;
 import com.chargev.emsp.model.dto.oem.EmspKafkaRfid;
+import com.chargev.emsp.model.dto.oem.EmspStatus;
 import com.chargev.emsp.repository.oem.EmspAccountRepository;
 import com.chargev.emsp.repository.oem.EmspContractHistoryRepository;
 import com.chargev.emsp.repository.oem.EmspContractRepository;
@@ -198,10 +199,19 @@ public class OemServiceUtils {
     public void sendRfidModifyAlert(EmspContractEntity contract, String status, String reason) {
         EmspKafkaRfid kafkaObject = new EmspKafkaRfid();
         kafkaObject.setOemCode("BENZ");
-        kafkaObject.setRfid(contract.getRfidNum());
-        kafkaObject.setRfidStatus(status);
+        kafkaObject.setRfId(contract.getRfidNum());
+        kafkaObject.setRfIdStatus(status);
         kafkaObject.setRequestDate(formatDate(new Date()));
 
         kafkaEmspManageService.sendRfidModify(kafkaObject, reason);
+    }
+
+    public EmspStatus getEmspStatusEnumFromInt(Integer status) {
+        return switch (status) {
+            case 1 -> EmspStatus.ACTIVE;
+            case 2 -> EmspStatus.LOCKED;
+            case 3 -> EmspStatus.TERMINATED;
+            default -> null;
+        };
     }
 }

@@ -39,7 +39,7 @@ public class PoiDataSourceConfiguration {
 		em.setPackagesToScan("com.chargev.emsp.entity.poi");
 		HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         HashMap<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.hbm2ddl.auto", "update");
+        properties.put("hibernate.hbm2ddl.auto", "none");
         em.setJpaPropertyMap(properties);
         em.setJpaVendorAdapter(vendorAdapter);
 

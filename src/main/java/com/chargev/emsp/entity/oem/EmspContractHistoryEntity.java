@@ -16,7 +16,7 @@ public class EmspContractHistoryEntity {
     @Column(name = "CONTRACT_HISTORY_ID", columnDefinition = "CHAR(32)")
     private String contractHistoryId;
 
-    @Column(name = "CONTRACT_ID", columnDefinition = "CHAR(15)")
+    @Column(name = "CONTRACT_ID", columnDefinition = "CHAR(14)")
     private String contractId;
 
     @Column(name = "EMSP_ACCOUNT_KEY", columnDefinition = "CHAR(32)", nullable = false)

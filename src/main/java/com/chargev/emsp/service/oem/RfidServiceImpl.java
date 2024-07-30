@@ -14,6 +14,8 @@ import com.chargev.emsp.model.dto.oem.EmspRfidCard;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardIssuedDetail;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardRegistration;
 import com.chargev.emsp.model.dto.oem.EmspRfidCardRequest;
+import com.chargev.emsp.model.dto.oem.EmspRfidStatusForMsp;
+import com.chargev.emsp.model.dto.oem.EmspStatus;
 import com.chargev.emsp.repository.oem.EmspContractRepository;
 import com.chargev.emsp.repository.oem.EmspRfidRepository;
 import com.chargev.emsp.service.ServiceResult;
@@ -42,7 +44,9 @@ public class RfidServiceImpl implements RfidService {
         try {
             EmspAccountEntity account = oemServiceUtils.findAccountByKeyAndAccountStatus(emspAccountKey, 1);
             EmspContractEntity contract = oemServiceUtils.findContractByAccountAndIdAndStatus(account, emspContractId, 1);
-            if(contract.getRfidStatus() == 1 || contract.getRfidStatus() == 2) {
+            boolean isActivated = contract.getRfidStatus() == 1;
+            boolean isLocked = contract.getRfidStatus() == 2;
+            if(isActivated || isLocked) {
                 EmspRfidEntity rfidActivated = oemServiceUtils.findRfidByContractIdAndStatus(contract.getContractId(), 1);
                 if (rfidActivated != null) {
                     result.fail(400, "이미 활성화된 RFID가 존재합니다.");
@@ -54,6 +58,7 @@ public class RfidServiceImpl implements RfidService {
                     // Contract 테이블에도 업데이트를 해야할까?
                     // 어차피 Contract 테이블에는 다음 단계에서 새 RFID 카드가 업데이트 되므로 여기에서는 그냥 둔다.
                     rfidLocked.setStatus(3);
+                    rfidLocked.setStatusReason(null);
                     emspRfidRepository.save(rfidLocked);
                 }
             }
@@ -63,7 +68,7 @@ public class RfidServiceImpl implements RfidService {
     
             // 1. RFID 테이블에서 카드상태와 contract를 업데이트 한다.
             EmspRfidEntity rfidNew = oemServiceUtils.findRfidByRfNum(request.getRfidCardNumber());
-            rfidNew.setStatus(2);
+            rfidNew.setStatus(1);
             rfidNew.setRegistrationDate(new Date()); // TODO : 실제로는 0에서 가져온 ORDER TABLE의 정보를 사용해 여기를 채워야 함
             rfidNew.setContractId(contract.getContractId());
             rfidNew.setUpdatedAt(new Date());
@@ -83,11 +88,11 @@ public class RfidServiceImpl implements RfidService {
             EmspRfidCard emspRfidCard = new EmspRfidCard();
             emspRfidCard.setCardId(rfidNew.getId());
             emspRfidCard.setCardNumber(rfidNew.getRfNum());
-            emspRfidCard.setStatus(rfidNew.getStatus() == 1 ? "Active" : "InActive");
+            emspRfidCard.setStatus(oemServiceUtils.getEmspStatusEnumFromInt(rfidNew.getStatus()));
             emspRfidCard.setRegistrationDate(oemServiceUtils.formatDate(rfidNew.getRegistrationDate()));
     
             // TODO : 성패여부 확인 필요
-            oemServiceUtils.sendRfidModifyAlert(contract, "AVAILABLE", "REGISTRATION");
+            oemServiceUtils.sendRfidModifyAlert(contract, EmspRfidStatusForMsp.AVAILABLE.toString(), null);
     
             result.succeed(emspRfidCard);
         } catch (IllegalArgumentException e) {
@@ -111,8 +116,8 @@ public class RfidServiceImpl implements RfidService {
     
             boolean isActivated = rfid.getStatus() == 1;
             boolean isLocked = rfid.getStatus() == 2;
-            boolean isRequestActivating = request.getStatus().equals("Active");
-            boolean isRequestLocking = request.getStatus().equals("Inactive");
+            boolean isRequestActivating = request.getStatus() == EmspStatus.ACTIVE;
+            boolean isRequestLocking = request.getStatus() == EmspStatus.LOCKED;
     
             if(isActivated && isRequestLocking) {
                 rfid = oemServiceUtils.lockRfid(emspContractId, request.getReason());
@@ -123,7 +128,7 @@ public class RfidServiceImpl implements RfidService {
             EmspRfidCard emspRfidCard = new EmspRfidCard();
             emspRfidCard.setCardId(rfid.getId());
             emspRfidCard.setCardNumber(rfid.getRfNum());
-            emspRfidCard.setStatus(rfid.getStatus() == 1 ? "Active" : "InActive");
+            emspRfidCard.setStatus(oemServiceUtils.getEmspStatusEnumFromInt(rfid.getStatus()));
             emspRfidCard.setReason(rfid.getStatusReason());
             emspRfidCard.setRegistrationDate(oemServiceUtils.formatDate(rfid.getRegistrationDate()));
     
@@ -149,7 +154,7 @@ public class RfidServiceImpl implements RfidService {
             EmspAccountEntity account = oemServiceUtils.findAccountByKeyAndAccountStatus(emspAccountKey, 1);
             EmspContractEntity contract = oemServiceUtils.findContractByAccountAndIdAndStatus(account, emspContractId, 1, 2);
             
-            oemServiceUtils.terminateRfid(contract.getContractId(), "SYSTEM_RFID_Termination");
+            oemServiceUtils.terminateRfid(contract.getContractId(), null);
     
             result.succeed("OK");
         } catch (IllegalArgumentException e) {
@@ -173,7 +178,7 @@ public class RfidServiceImpl implements RfidService {
             EmspRfidCard emspRfidCard = new EmspRfidCard();
             emspRfidCard.setCardId(rfid.getId());
             emspRfidCard.setCardNumber(rfid.getRfNum());
-            emspRfidCard.setStatus(rfid.getStatus() == 1 ? "Active" : "InActive");
+            emspRfidCard.setStatus(oemServiceUtils.getEmspStatusEnumFromInt(rfid.getStatus()));
             emspRfidCard.setReason(rfid.getStatusReason());
             emspRfidCard.setRegistrationDate(oemServiceUtils.formatDate(rfid.getRegistrationDate()));
     
@@ -202,7 +207,7 @@ public class RfidServiceImpl implements RfidService {
             EmspRfidCard emspRfidCard = new EmspRfidCard();
             emspRfidCard.setCardId(rfid.getId());
             emspRfidCard.setCardNumber(rfid.getRfNum());
-            emspRfidCard.setStatus(rfid.getStatus() == 1 ? "Active" : "InActive");
+            emspRfidCard.setStatus(oemServiceUtils.getEmspStatusEnumFromInt(rfid.getStatus()));
             emspRfidCard.setReason(rfid.getStatusReason());
             emspRfidCard.setRegistrationDate(oemServiceUtils.formatDate(rfid.getRegistrationDate()));
     

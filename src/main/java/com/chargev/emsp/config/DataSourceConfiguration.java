@@ -41,7 +41,7 @@ public class DataSourceConfiguration {
 		em.setPackagesToScan("com.chargev.emsp.entity.authenticationentity", "com.chargev.emsp.entity.cert", "com.chargev.emsp.entity.contract", "com.chargev.emsp.entity.keyentity", "com.chargev.emsp.entity.log", "com.chargev.emsp.entity.oem", "com.chargev.emsp.entity.ocpi");
 		HibernateJpaVendorAdapter vendorAdapter = new HibernateJpaVendorAdapter();
         HashMap<String, Object> properties = new HashMap<>();
-        properties.put("hibernate.hbm2ddl.auto", "update");
+        properties.put("hibernate.hbm2ddl.auto", "none");
         em.setJpaPropertyMap(properties);
         em.setJpaVendorAdapter(vendorAdapter);
 

@@ -20,6 +20,6 @@ public class EmspKeyBase {
     @Column(name = "EMSP_ACCOUNT_KEY", columnDefinition = "CHAR(32)", nullable = false)
     private String emspAccountKey;
 
-    @Column(name = "SEQUENCE_HEX", columnDefinition = "VARCHAR(8)", unique = true)
+    @Column(name = "SEQUENCE_HEX", columnDefinition = "CHAR(7)", unique = true)
     private String sequenceHex;
 }

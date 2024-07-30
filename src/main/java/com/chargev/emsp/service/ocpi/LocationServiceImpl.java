@@ -10,10 +10,13 @@ import java.time.LocalTime;
 
 import org.apache.catalina.startup.HostRuleSet;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.chargev.emsp.entity.ocpi.OcpiEvse;
 import com.chargev.emsp.entity.ocpi.OcpiEvseConnector;
 import com.chargev.emsp.entity.ocpi.OcpiLocation;
+import com.chargev.emsp.entity.ocpi.OcpiEvse.OcpiEvseId;
 import com.chargev.emsp.entity.poi.ConnectorStr;
 import com.chargev.emsp.entity.poi.ConnectorTypeStr;
 import com.chargev.emsp.entity.poi.Directions;
@@ -43,6 +46,9 @@ import com.chargev.emsp.repository.ocpi.OcpiEvseRepository;
 import com.chargev.emsp.repository.ocpi.OcpiLocationRepository;
 import com.chargev.emsp.repository.poi.PoiMasterRepository;
 import com.fasterxml.jackson.databind.util.ArrayBuilders;
+
+import jakarta.validation.OverridesAttribute;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -63,6 +69,17 @@ public class LocationServiceImpl implements LocationService {
     public List<PoiMaster> getPoiMaster(String lastUpdated) {
         //return poiMasterRepository.getLastData("20240701");
         return null;
+    }
+
+    @Override
+    public List<OcpiLocation> getLocationByDate(String startUpdated, String lastUpdated, String oemId, int size, int offset) {
+        List<OcpiLocation> locations = ocpiLocationRepository.findByDate(startUpdated, lastUpdated, oemId, size, offset);
+        if(locations != null) {
+            return locations;
+        }
+        else {
+            return new ArrayList<>();
+        }   
     }
 
     private List<Capability> getCapabilities(String companyId) {
@@ -195,7 +212,7 @@ public class LocationServiceImpl implements LocationService {
 
         Hours hours = new Hours();
         if (operationTimeType == null || operationTimeType.isEmpty() || operationTimeType.equalsIgnoreCase("S08007")) {
-            hours.setTwentyfourseven(false);
+            hours.setTwentyfourseven(true);
             return hours;
         }
 
@@ -298,7 +315,35 @@ public class LocationServiceImpl implements LocationService {
         return regularHours;
     }
 
+    @Override
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    public OcpiLocation getLocationById(OcpiLocation.OcpiLocationId id) {
+        return ocpiLocationRepository.findById(id).orElse(null);
+    }
+    
+    @Override
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    public OcpiEvse getEvseByLocationAndId(String locationId, String uid, String oemId) {
+        OcpiEvse.OcpiEvseId ocpiEvseId = new OcpiEvse.OcpiEvseId();
+        ocpiEvseId.setLocationId(locationId);
+        ocpiEvseId.setOemId(oemId);
+        ocpiEvseId.setEvseId(uid);
+        return ocpiEvseRepository.findById(ocpiEvseId).orElse(null);
+    }
+    
+    @Override
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    public OcpiEvseConnector getEvseConnectorByLocationAndId(String locationId, String uid, String connectorId,  String oemId) {
+        OcpiEvseConnector.OcpiEvseConnectorId ocpiEvseConnectorId = new OcpiEvseConnector.OcpiEvseConnectorId();
+        ocpiEvseConnectorId.setLocationId(locationId);
+        ocpiEvseConnectorId.setOemId(oemId);
+        ocpiEvseConnectorId.setEvseId(uid);
+        ocpiEvseConnectorId.setConnectorId(connectorId);
+        return ocpiEvseConnectorRepository.findById(ocpiEvseConnectorId).orElse(null);
+    }
+
     @Override 
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public List<Location> updateLastPoi(String startUpdated, String lastUpdated, String oemId) {
         List<PoiMaster> poiMasters = poiMasterRepository.getLastData(startUpdated, lastUpdated);
         List<Location> locations = new ArrayList<>();
@@ -445,8 +490,14 @@ public class LocationServiceImpl implements LocationService {
             directions.add(globalDirections);
             loc.setDirections(directions); 
             ParkingType parkingType = ParkingType.fromValue(poiMaster.getCategory());
-            if(parkingType == null) {
+
+            if(poiMaster.getHighwayYn() != null && poiMaster.getHighwayYn().equals("Y")) {
+                parkingType = ParkingType.ALONG_HIGHWAY;
+            }
+            else {
+                if(parkingType == null) {
                 parkingType = ParkingType.UNKNOWN;
+            }
             }
             loc.setParkingType(parkingType);
             BusinessDetails operator = new BusinessDetails();
@@ -527,13 +578,6 @@ public class LocationServiceImpl implements LocationService {
                 } catch (JsonProcessingException e) {
                     log.info(e.getMessage());
                 }
-                // Sleep 1 sec
-                try {
-                    Thread.sleep(200);
-                } catch (InterruptedException e) {
-                    log.info(e.getMessage());
-                }
-
                 //locations.add(loc);
             }
         }

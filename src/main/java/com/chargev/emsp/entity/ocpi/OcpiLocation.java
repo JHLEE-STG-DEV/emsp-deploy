@@ -16,8 +16,8 @@ public class OcpiLocation {
 
     @EmbeddedId
     private OcpiLocationId id;
-
-    @Column(name = "OCPIDATA", columnDefinition = "TEXT", nullable = false)
+    // JPA BLOB 데이터는 이렇게 매핑 처리해줄 필요가 있음 (TEXT로 하면 65,535 자리로 오인될 수 있음 )
+    @Column(name = "OCPIDATA", length = 16777215, nullable = false)
     private String ocpiData;
 
     @Column(name = "LASTUPDATED", length = 14, nullable = false)
